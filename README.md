@@ -15,9 +15,10 @@ npm install --save three
 npm install --save-dev vite
 ```
 <br>
-Run one last install to get the final dependency:
+Run one last install to get the final dependency
+
 ```
-npm install
+npx install
 ```
 
 Run the project with this command:
