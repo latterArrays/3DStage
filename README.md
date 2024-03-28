@@ -14,6 +14,11 @@ Once installed, open the project to the directory where you see index.html and u
 npm install --save three
 npm install --save-dev vite
 ```
+<br>
+Run one last install to get the final dependency:
+```
+npm install
+```
 
 Run the project with this command:
 ```
