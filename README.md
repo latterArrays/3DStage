@@ -15,16 +15,29 @@ npm install --save three
 npm install --save-dev vite
 ```
 
+Run one last install to get the final dependency:
+
+```
+npx install
+```
 Run the project with this command:
+
 ```
 npx vite
 ```
 
 Then, it should give you a localhost URL to open. 
 
-<br>
-Audio coming soon!
+You can dynamically increase the number of drums with the GUI slider. 
+Some (but probably not all) ToDos:
 
+- Add Audio
+- Add representation of listener center stage
+- Replace drums with other instruments or abstract shapes
+- Remove lighting controls
+- Add vertical displacement ( also will affect lighting and audio)
+- Transport controls 
+ 
 #### Resources
 three.js
 https://threejs.org/examples
@@ -33,4 +46,3 @@ https://threejs.org/examples
 Web Audio API
 https://mdn.github.io/webaudio-examples/
 <br>
-
