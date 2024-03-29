@@ -410,7 +410,7 @@ function fetchAudio(url) {
         });
 }
 
-function getRandomAudioFilePath() {
+function getRandomAudioFilePath(index) {
     const audioFiles = [
         'src/audio/beat.mp3',
         'src/audio/bass.wav',
@@ -418,8 +418,7 @@ function getRandomAudioFilePath() {
         'src/audio/pad.wav',
         'src/audio/beat.wav'
     ];
-    const randomIndex = Math.floor(Math.random() * audioFiles.length);
-    return audioFiles[randomIndex];
+    return audioFiles[index];
 }
 
 // Drop audio file onto the scene 
@@ -454,7 +453,7 @@ document.addEventListener('drop', function (ev) {
         instrumentClusters.forEach(cluster => {
             if (intersectedObject.position == cluster.instrument.position) {
                 // Bingo, we are dropping a file onto THIS cluster
-                const url = getRandomAudioFilePath()
+                const url = getRandomAudioFilePath(cluster.index)
 
                 // For now, we are just testing with a static file
                 fetch(url)
