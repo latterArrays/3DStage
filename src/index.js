@@ -27,17 +27,23 @@ let drumTemplate = null;
 // Create GUI
 const gui = new dat.GUI();
 
+// Recording state (one of 'cleared' | 'recording' | 'saved )
+let recordingState = 'cleared';
+
 // Define DrumSpotlight class
-class DrumSpotlight {
+class InstrumentCluster {
     constructor(drum, spotlight) {
         this.drum = drum;
         this.spotlight = spotlight;
+        // audio track
+        // instrument model
+        // xyz pos 
+        // panner
     }
 }
 
 // Array to hold clusters of drums and spotlights
 const drumSpotlightClusters = [];
-
 
 
 // GUI parameters object
@@ -50,6 +56,7 @@ const numDrumsControl = gui.add(guiParams, 'numDrums', 1, 5, 1).name('Number of 
     updateDrums(value);
 });
 
+// Function to remove folder from GUI 
 dat.GUI.prototype.removeFolder = function(name) {
     var folder = this.__folders[name];
     if (!folder) {
@@ -126,7 +133,7 @@ function updateDrums(numDrums) {
         // Create controls for this spotlight
         createOrUpdateSpotlightControls(spotlight, i);
 
-        const drumSpotlight = new DrumSpotlight(drum, spotlight); // Create DrumSpotlight instance
+        const drumSpotlight = new InstrumentCluster(drum, spotlight); // Create DrumSpotlight instance
         drumSpotlight.index = i;
         drumSpotlightClusters.push(drumSpotlight); // Push to clusters array
     }
@@ -197,6 +204,7 @@ animate();
 // Event listeners for mouse movement and release
 let isDragging = false;
 
+// Mouse click initial handler
 document.addEventListener('mousedown', function (event) {
     event.preventDefault();
     const mouse = {
@@ -218,6 +226,7 @@ document.addEventListener('mousedown', function (event) {
     }
 });
 
+// Mouse dragging
 document.addEventListener('mousemove', function (event) {
     event.preventDefault();
     if (isDragging && selectedDrum) {
@@ -238,10 +247,13 @@ document.addEventListener('mousemove', function (event) {
             const spotlight = drumSpotlightClusters.find(cluster => cluster.drum === selectedDrum).spotlight;
             spotlight.target.position.copy(intersectionPoint);
         }
+
+        // Update audio panner - TODO should be per instrument
+        updatePanner(selectedDrum.position.x, selectedDrum.position.z, 1);
     }
 });
 
-
+// Drop the instrument
 document.addEventListener('mouseup', function (event) {
     event.preventDefault();
     if (isDragging) {
@@ -251,20 +263,158 @@ document.addEventListener('mouseup', function (event) {
     }
 });
 
+// Create audio context
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+var audioBuffer;
+var sourceNode;
+var dropZone = document.getElementById('drop_zone');
+
+// Create a panner node
+var panner = audioCtx.createPanner();
+panner.panningModel = 'HRTF';
+panner.distanceModel = 'inverse';
+panner.setPosition(1, 0, 0); // Position the audio source to the right of the listener
+panner.orientationX.setValueAtTime(1, audioCtx.currentTime);
+panner.orientationY.setValueAtTime(0, audioCtx.currentTime);
+panner.orientationZ.setValueAtTime(0, audioCtx.currentTime);
+
+const canvas = document.getElementById('spatialCanvas');
+let sourcePosition = { x: canvas.width / 2, y: canvas.height / 2 }; // Initialize source position
+
+// Load audio URL
+function fetchAudio(url) {
+    fetch(url)
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
+        .then(decodedAudio => {
+            audioBuffer = decodedAudio;
+        });
+}
+
+// TODO - change this so you pass the panner you want to change as an argument
+function updatePanner(x, y, z) {
+    const rect = canvas.getBoundingClientRect();
+    const normX = ((x - rect.left) / canvas.width) * 2 - 1;
+    const normY = -(((y - rect.top) / canvas.height) * 2 - 1);
+    const normZ = z;
+
+    // console.log(JSON.stringify("X: " + panner.positionX.value, null, 4));
+    // console.log(JSON.stringify("Y: " +panner.positionY.value, null, 4));
+    // console.log(JSON.stringify("Z: " +panner.positionZ.value, null, 4));
+
+    panner.positionX.value = x;
+    panner.positionY.value = y;
+    panner.positionZ.value = z;
+
+
+    // Update based on the listener object pos
+    // sourcePosition = { x: x - rect.left, y: y - rect.top };
+}
+
+// Play button
+function playAudio() {
+    if (audioBuffer) {
+        if (sourceNode) sourceNode.disconnect();
+        sourceNode = audioCtx.createBufferSource();
+        sourceNode.buffer = audioBuffer;
+
+        var playbackSpeed = 1;
+        sourceNode.playbackRate.value = playbackSpeed;
+
+        sourceNode.connect(panner);
+        panner.connect(audioCtx.destination);
+
+        sourceNode.start();
+    }
+}
+
+// Stop button
+function stopAudio() {
+    if (sourceNode) {
+        sourceNode.stop();
+        sourceNode = null;
+    }
+}
+
+// Prevent drom from loading file into the browser
+document.addEventListener('dragover', function(ev) {
+    ev.preventDefault();
+});
+
+// Drop audio file onto the scene 
+document.addEventListener('drop', function(ev) {
+    ev.preventDefault();
+    fetchAudio('src/audio/beat.mp3');
+
+    // TODO - load audio, do raycast to get object, store in instrument cluster
+    // if (ev.dataTransfer.items) {
+    //     var file = ev.dataTransfer.items[0].getAsFile();
+    //     var reader = new FileReader();
+    //     reader.onload = function(e) {
+            
+
+    //     };
+    //     reader.readAsArrayBuffer(file);
+    // }
+});
+
 // Transport controls
 document.getElementById('play-button').addEventListener('click', () => {
     // Play functionality
-    alert("PLAY!");
+    playAudio();
 });
 
 document.getElementById('stop-button').addEventListener('click', () => {
     // Stop functionality
+    stopAudio();
 });
 
-document.getElementById('rewind-button').addEventListener('click', () => {
-    // Rewind functionality
+document.getElementById('download-button').addEventListener('click', () => {
+    // Download functionality
 });
 
-document.getElementById('fast-forward-button').addEventListener('click', () => {
-    // Fast forward functionality
+document.getElementById('clear-button').addEventListener('click', () => {
+    // Clear functionality
+    recordingState = 'cleared';
+    updateRecordingButtonState();
 });
+
+const recordButton = document.getElementById('record-button');
+
+// Toggle recording state when the button is clicked
+recordButton.addEventListener('click', function() {
+    switch (recordingState) {
+        case 'cleared':
+            recordingState = 'recording';
+            // begin recording
+            break;
+        case 'recording':
+            recordingState = 'saved';
+            // stop and save recording
+            break;
+        case 'saved':
+            recordingState = 'recording';
+            // begin recording
+            break;
+    }
+    updateRecordingButtonState();
+});
+
+// Function to update the button appearance based on the recording state
+function updateRecordingButtonState() {
+    recordButton.classList.remove('record-active', 'recording-saved');
+    switch (recordingState) {
+        case 'cleared':
+            recordButton.style.border = '2px solid #333'; /* White circle border color */
+            recordButton.style.backgroundColor = '#fff'; /* White circle background color */
+            recordButton.style.cursor = 'pointer'; /* Change cursor to pointer */
+            break;
+        case 'recording':
+            recordButton.classList.add('record-active');
+            break;
+        case 'saved':
+            recordButton.classList.add('recording-saved');
+            break;
+    }
+}
+

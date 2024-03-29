@@ -37,6 +37,9 @@ Some (but probably not all) ToDos:
 - Remove lighting controls
 - Add vertical displacement ( also will affect lighting and audio)
 - Transport controls 
+- Arrow above the instruments
+- Per instrument audio track
+
  
 #### Resources
 three.js
