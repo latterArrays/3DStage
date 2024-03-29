@@ -6,6 +6,9 @@ import * as dat from 'dat.gui';
 // Setup scene
 const scene = new THREE.Scene();
 
+// Create audio context
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
 // Setup camera
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 2, 0);
@@ -20,138 +23,190 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.update();
 
-// Load drum model
+let selectedinstrument = null; // Variable to store the selected instrument for dragging 
+let dragDirection = 'horizontal'; // Determines which axis to move the instrument ( 'horizontal' | 'verital' )
+
+const canvas = document.getElementById('spatialCanvas');
+
+// TODO create a model for the source position, similar to the isntrumentCluster class but not audio node or buffer or panner
+let sourcePosition = { x: canvas.width / 2, y: canvas.height / 2 }; // Initialize source position
+
+// Load instrument models (just the drum for now)
 const loader = new GLTFLoader();
-let selectedDrum = null; // Variable to store the selected drum
 let drumTemplate = null;
+// let keyboardTemplate = ... TODO when we have more models, create a gltf template for each
+
+// Load instrument model
+loader.load('src/drum/scene.gltf', function (gltf) {
+    drumTemplate = gltf.scene;
+    drumTemplate.scale.set(0.01, 0.01, 0.01); // Scale down the instrument
+    console.log("Loaded drum template from model");
+    // Load one initial instrument
+    updateInstruments(1);
+});
+
 // Create GUI
 const gui = new dat.GUI();
 
 // Recording state (one of 'cleared' | 'recording' | 'saved )
 let recordingState = 'cleared';
 
-// Define DrumSpotlight class
+// Define InstrumentCluster class
+// Instrument - 3D model for this instrument
+// Spotlight - lighting element for this instrument
+// Panner - Panner node for this instrument's audio spatialization
+// Instruments each have their own audioBuffer, audioSource, and index, but those are not set on initialization
+// AudioBuffer - stores the track dropped onto an instrument
+// SourceNode - Audio Context node to play and stop
+// Index - unique id for the cluster
+// The position of the cluster is accessed via the instrument, ie instrument.position.{x,y,z}
+// This class is also where we will add per-instrument things like pitch, gain, hi/lo-pass filters, etc
 class InstrumentCluster {
-    constructor(drum, spotlight) {
-        this.drum = drum;
+    constructor(instrument, spotlight, panner) {
+        this.instrument = instrument;
         this.spotlight = spotlight;
-        // audio track
-        // instrument model
-        // xyz pos 
-        // panner
+        this.panner = panner;
+        this.audioBuffer = null;
+        this.sourceNode = null;
+        this.index = null;
     }
 }
 
-// Array to hold clusters of drums and spotlights
-const drumSpotlightClusters = [];
-
+// Array to hold clusters of instruments (the above class)
+const instrumentClusters = [];
 
 // GUI parameters object
 const guiParams = {
-    numDrums: 1 // Initial number of drums
+    numInstruments: 1 // Initial number of instruments
 };
 
-// Add controls for the number of drums
-const numDrumsControl = gui.add(guiParams, 'numDrums', 1, 5, 1).name('Number of Drums').onChange(value => {
-    updateDrums(value);
+// Add controls for the number of instruments
+const numInstrumentsControl = gui.add(guiParams, 'numInstruments', 1, 4, 1).name('Number of Instruments').onChange(value => {
+    updateInstruments(value);
 });
 
 // Function to remove folder from GUI 
-dat.GUI.prototype.removeFolder = function(name) {
+dat.GUI.prototype.removeFolder = function (name) {
     var folder = this.__folders[name];
     if (!folder) {
-      return;
+        return;
     }
     folder.close();
     this.__ul.removeChild(folder.domElement.parentNode);
     delete this.__folders[name];
     this.onResize();
-  }
+}
 
-// Function to update the number of drums
-function updateDrums(numDrums) {
-    // Remove existing drums and spotlights
-    drumSpotlightClusters.forEach(cluster => {
-        scene.remove(cluster.drum);
-        scene.remove(cluster.spotlight.target);
-        scene.remove(cluster.spotlight);
+  
+// Function to update the number of instruments
+function updateInstruments(numInstruments) {
 
-        // Remove the folder associated with this spotlight
-        const folderName = `Spotlight ${cluster.index + 1}`;
-        if (gui.__folders[folderName]) {
-            gui.removeFolder(folderName);
-        }
+    // Stop audio tracks
+    //stopAudio();
+
+    // Remove existing instruments and spotlights if they are less than numInstruments
+    instrumentClusters.forEach(cluster => {
+            scene.remove(cluster.instrument);
+            scene.remove(cluster.spotlight.target);
+            scene.remove(cluster.spotlight);
+
+            // Remove the folder associated with this spotlight
+            const folderName = `Spotlight ${cluster.index + 1}`;
+            if (gui.__folders[folderName]) {
+                gui.removeFolder(folderName);
+            }
+        
     });
-    drumSpotlightClusters.length = 0;
 
-    // Add new drums and spotlights
-    const angleIncrement = (2 * Math.PI) / numDrums;
+    instrumentClusters.length = 0;
+
+    // Add new instruments and spotlights in a circle around the center of the stage
+    const angleIncrement = (2 * Math.PI) / numInstruments;
     const radius = 5;
 
-    for (let i = 0; i < numDrums; i++) {
+    for (let i = 0; i < numInstruments; i++) {
         const angle = i * angleIncrement;
         const x = radius * Math.cos(angle);
         const z = radius * Math.sin(angle);
 
-        const drum = drumTemplate.clone(); // Clone the drum model
-        drum.position.set(x, 0.4, z); // Set position for this drum instance
-        scene.add(drum); // Add drum instance to the scene
+        // Create an instrument to be represented by a 3D model
+        let instrument = null;
 
-        // Add userData to mark drum as draggable
-        drum.userData.draggable = true;
-
-        // Add spotlight above each drum
-        const spotlight = new THREE.SpotLight(0xffffff, 2); // Cone spotlight with increased intensity
+        // Add spotlight above each instrument
+        let spotlight = new THREE.SpotLight(0xffffff, 2); // Cone spotlight 
         spotlight.position.set(x * 2.5, 4, z * 2.5); // Position outside the stage
-        spotlight.target.position.set(x, 0, z); // Direct light towards the drum
+        spotlight.target.position.set(x, 0, z); // Direct light towards the instrument
         scene.add(spotlight.target); // Add spotlight target to the scene
         scene.add(spotlight); // Add spotlight to the scene
 
-
-
-        // Assign complementary colors to spotlights
+        // Assign complementary colors to spotlights unique for each instrument
+        // TODO change the cloned template once you have more models
         switch (i % 4) {
             case 0:
                 spotlight.color.set(0x00ffff); // Cyan spotlight
+                instrument = drumTemplate.clone(); // Drum
                 break;
+
             case 1:
                 spotlight.color.set(0xff00ff); // Magenta spotlight
+                instrument = drumTemplate.clone(); // Drum
                 break;
+
             case 2:
                 spotlight.color.set(0x0000ff); // Blue spotlight
+                instrument = drumTemplate.clone(); // Drum
                 break;
+
             case 3:
                 spotlight.color.set(0xcc00cc); // Pink spotlight
+                instrument = drumTemplate.clone(); // Drum
                 break;
         }
 
+        // Default spotlight settings
         spotlight.intensity = 35;
         spotlight.angle = 0.4;
         spotlight.penumbra = 0.2;
-        
+
+        // Set the position of the 3D model
+        instrument.position.set(x, 0.4, z); // Set position for this instrument instance
+        scene.add(instrument); // Add instrument instance to the scene
+
+        // Add userData to mark instrument as draggable
+        instrument.userData.draggable = true;
 
         // Create controls for this spotlight
         createOrUpdateSpotlightControls(spotlight, i);
 
-        const drumSpotlight = new InstrumentCluster(drum, spotlight); // Create DrumSpotlight instance
-        drumSpotlight.index = i;
-        drumSpotlightClusters.push(drumSpotlight); // Push to clusters array
+        // Create an audio buffer and panner node for this instrument
+        // Create a panner node
+        let panner = audioCtx.createPanner();
+        panner.panningModel = 'HRTF';
+        panner.distanceModel = 'inverse';
+        panner.setPosition(instrument.position.x, instrument.position.z, instrument.position.y); // Position the audio source to the instrument position
+        panner.orientationX.setValueAtTime(1, audioCtx.currentTime); // TODO assuming this needs to face the listener from where the cluster is, we'll need to modify this
+        panner.orientationY.setValueAtTime(0, audioCtx.currentTime);
+        panner.orientationZ.setValueAtTime(0, audioCtx.currentTime);
+
+        //console.log('At time of insertion, instrument is ' + JSON.stringify(instrument))
+        const instrumentCluster = new InstrumentCluster(instrument, spotlight, panner); // Create instrumentCluster instance
+        instrumentCluster.index = i;
+
+        instrumentClusters.push(instrumentCluster); // Push to clusters array
     }
 }
 
 
-// Load drum model
-loader.load('src/drum/scene.gltf', function (gltf) {
-    drumTemplate = gltf.scene;
-    drumTemplate.scale.set(0.01, 0.01, 0.01); // Scale down the drum
-    updateDrums(1);
-});
+
+
+
 
 // Creates or updates spotlight controls and adds them to the UI
+// TODO reduce the complexity of these controls once lighting is tied to other attributes of the instrument
 function createOrUpdateSpotlightControls(spotlight, index) {
     // Check if the folder exists, if it does, update the controls
     let folder = gui.addFolder(`Spotlight ${index + 1}`);
-    
+
     // Add controls for color
     const colorControl = folder.addColor({
         color: spotlight.color.getHex()
@@ -213,14 +268,18 @@ document.addEventListener('mousedown', function (event) {
     };
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
+    console.log(instrumentClusters.length)
+    //console.log(JSON.stringify(instrumentClusters,null,4))
 
-    const draggableObjects = drumSpotlightClusters.map(cluster => cluster.drum);
+    const draggableObjects = instrumentClusters.map(cluster => cluster.instrument);
+    //console.log(JSON.stringify(draggableObjects,null,4))
     const intersects = raycaster.intersectObjects(draggableObjects);
     if (intersects.length > 0) {
+        //console.log(JSON.stringify(intersects,null,4))
         isDragging = true;
-        selectedDrum = intersects[0].object;
-        while (selectedDrum.parent.parent !== null) {
-            selectedDrum = selectedDrum.parent;
+        selectedinstrument = intersects[0].object;
+        while (selectedinstrument.parent.parent !== null) {
+            selectedinstrument = selectedinstrument.parent;
         }
         controls.enabled = false; // Disable OrbitControls while dragging
     }
@@ -229,7 +288,7 @@ document.addEventListener('mousedown', function (event) {
 // Mouse dragging
 document.addEventListener('mousemove', function (event) {
     event.preventDefault();
-    if (isDragging && selectedDrum) {
+    if (isDragging && selectedinstrument) {
         const mouse = {
             x: (event.clientX / window.innerWidth) * 2 - 1,
             y: - (event.clientY / window.innerHeight) * 2 + 1
@@ -240,16 +299,23 @@ document.addEventListener('mousemove', function (event) {
         const intersects = raycaster.intersectObject(stage);
         if (intersects.length > 0) {
             const intersectionPoint = intersects[0].point;
-            selectedDrum.position.x = intersectionPoint.x;
-            selectedDrum.position.z = intersectionPoint.z;
 
-            // Update spotlight target position
-            const spotlight = drumSpotlightClusters.find(cluster => cluster.drum === selectedDrum).spotlight;
+            // Handle movement based on key modifier
+            if (dragDirection == 'horizontal') {
+                selectedinstrument.position.x = intersectionPoint.x;
+                selectedinstrument.position.z = intersectionPoint.z;
+            } else if (dragDirection == 'vertical') {
+                selectedinstrument.position.y = intersectionPoint.y;
+            }
+
+
+            // Update spotlight target position (TODO only if what we are moving is an instrument and not the listener object)
+            const spotlight = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument).spotlight;
             spotlight.target.position.copy(intersectionPoint);
         }
 
-        // Update audio panner - TODO should be per instrument
-        updatePanner(selectedDrum.position.x, selectedDrum.position.z, 1);
+        // Update audio panners to reflect new positions
+        updatePanners();
     }
 });
 
@@ -258,30 +324,83 @@ document.addEventListener('mouseup', function (event) {
     event.preventDefault();
     if (isDragging) {
         isDragging = false;
-        selectedDrum = null; // Deselect the drum
+        selectedinstrument = null; // Deselect the instrument
         controls.enabled = true; // Re-enable OrbitControls
     }
 });
 
-// Create audio context
-var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-var audioBuffer;
-var sourceNode;
-var dropZone = document.getElementById('drop_zone');
+// Shift key modifier
+document.addEventListener('keydown', function (event) {
+    if (event.shiftKey) {
+        dragDirection = 'vertical';
+    }
+});
 
-// Create a panner node
-var panner = audioCtx.createPanner();
-panner.panningModel = 'HRTF';
-panner.distanceModel = 'inverse';
-panner.setPosition(1, 0, 0); // Position the audio source to the right of the listener
-panner.orientationX.setValueAtTime(1, audioCtx.currentTime);
-panner.orientationY.setValueAtTime(0, audioCtx.currentTime);
-panner.orientationZ.setValueAtTime(0, audioCtx.currentTime);
+// Shift key modifier
+document.addEventListener('keyup', function (event) {
+    if (event.shiftKey) {
+        dragDirection = 'horizontal';
+    }
+});
 
-const canvas = document.getElementById('spatialCanvas');
-let sourcePosition = { x: canvas.width / 2, y: canvas.height / 2 }; // Initialize source position
+// Update a each panner's position
+// TODO make sure the math is right on this (in terms of normalizing to the 3D scene)
+function updatePanners() {
+    const rect = canvas.getBoundingClientRect();
+    // const normX = ((x - rect.left) / canvas.width) * 2 - 1;
+    // const normY = -(((y - rect.top) / canvas.height) * 2 - 1);
+    // const normZ = z;
 
-// Load audio URL
+    // console.log(JSON.stringify("X: " + panner.positionX.value, null, 4));
+    // console.log(JSON.stringify("Y: " +panner.positionY.value, null, 4));
+    // console.log(JSON.stringify("Z: " +panner.positionZ.value, null, 4));
+
+    instrumentClusters.forEach(cluster => {
+        // Z and Y are flipped
+        cluster.panner.positionX.value = cluster.instrument.position.x;
+        cluster.panner.positionY.value = cluster.instrument.position.z;
+        cluster.panner.positionZ.value = cluster.instrument.position.y;
+    });
+
+}
+
+// Play button
+function playAudio() {
+    // Iterate through the instruments and play a track for each one that has a valid audio buffer
+    instrumentClusters.forEach(cluster => {
+        if (cluster.audioBuffer) {
+            if (cluster.sourceNode) cluster.sourceNode.disconnect();
+            cluster.sourceNode = audioCtx.createBufferSource();
+            cluster.sourceNode.buffer = cluster.audioBuffer;
+
+            var playbackSpeed = 1;
+            cluster.sourceNode.playbackRate.value = playbackSpeed;
+
+            cluster.sourceNode.connect(cluster.panner);
+            cluster.panner.connect(audioCtx.destination);
+
+            cluster.sourceNode.start();
+        }
+    });
+}
+
+// Stop button
+function stopAudio() {
+    // Iterate through the instruments and stop the track for each one if it is playing
+    instrumentClusters.forEach(cluster => {
+        if (cluster.sourceNode) {
+            cluster.sourceNode.stop();
+            cluster.sourceNode = null;
+        }
+    });
+}
+
+// Prevent drag across the screen from loading file into the browser
+document.addEventListener('dragover', function (ev) {
+    ev.preventDefault();
+});
+
+// Load audio URL to given instrument
 function fetchAudio(url) {
     fetch(url)
         .then(response => response.arrayBuffer())
@@ -291,71 +410,62 @@ function fetchAudio(url) {
         });
 }
 
-// TODO - change this so you pass the panner you want to change as an argument
-function updatePanner(x, y, z) {
-    const rect = canvas.getBoundingClientRect();
-    const normX = ((x - rect.left) / canvas.width) * 2 - 1;
-    const normY = -(((y - rect.top) / canvas.height) * 2 - 1);
-    const normZ = z;
-
-    // console.log(JSON.stringify("X: " + panner.positionX.value, null, 4));
-    // console.log(JSON.stringify("Y: " +panner.positionY.value, null, 4));
-    // console.log(JSON.stringify("Z: " +panner.positionZ.value, null, 4));
-
-    panner.positionX.value = x;
-    panner.positionY.value = y;
-    panner.positionZ.value = z;
-
-
-    // Update based on the listener object pos
-    // sourcePosition = { x: x - rect.left, y: y - rect.top };
-}
-
-// Play button
-function playAudio() {
-    if (audioBuffer) {
-        if (sourceNode) sourceNode.disconnect();
-        sourceNode = audioCtx.createBufferSource();
-        sourceNode.buffer = audioBuffer;
-
-        var playbackSpeed = 1;
-        sourceNode.playbackRate.value = playbackSpeed;
-
-        sourceNode.connect(panner);
-        panner.connect(audioCtx.destination);
-
-        sourceNode.start();
-    }
-}
-
-// Stop button
-function stopAudio() {
-    if (sourceNode) {
-        sourceNode.stop();
-        sourceNode = null;
-    }
-}
-
-// Prevent drom from loading file into the browser
-document.addEventListener('dragover', function(ev) {
-    ev.preventDefault();
-});
-
 // Drop audio file onto the scene 
-document.addEventListener('drop', function(ev) {
+document.addEventListener('drop', function (ev) {
     ev.preventDefault();
-    fetchAudio('src/audio/beat.mp3');
 
-    // TODO - load audio, do raycast to get object, store in instrument cluster
-    // if (ev.dataTransfer.items) {
-    //     var file = ev.dataTransfer.items[0].getAsFile();
-    //     var reader = new FileReader();
-    //     reader.onload = function(e) {
-            
+    // Get mouse position relative to screen
+    const mouse = {
+        x: (ev.clientX / window.innerWidth) * 2 - 1,
+        y: - (ev.clientY / window.innerHeight) * 2 + 1
+    }
 
-    //     };
-    //     reader.readAsArrayBuffer(file);
-    // }
+    // Create a ray cast from camera, through mouse, into the scene
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+
+    const draggableObjects = instrumentClusters.map(cluster => cluster.instrument);
+
+    // Get objects instersected by our mouse curser ray cast
+    const intersectedObjects = raycaster.intersectObjects(draggableObjects);
+    if (intersectedObjects.length > 0) {
+
+        // Get the 3D point of the first object intersected
+        let intersectedObject = intersectedObjects[0].object;
+        // Since the models are made of parts, iterate up their hierarchy to the top level object
+        while (intersectedObject.parent.parent !== null) {
+            intersectedObject = intersectedObject.parent;
+        }
+
+        // Now, we have our 3D Object that we have hit. We just need to match it with an instrument from the cluster, 
+        // and then we can load the audio buffer to the instrument
+        instrumentClusters.forEach(cluster => {
+            if (intersectedObject.position == cluster.instrument.position) {
+                // Bingo, we are dropping a file onto THIS cluster
+                const url = 'src/audio/beat.mp3';
+
+                // For now, we are just testing with a static file
+                fetch(url)
+                    .then(response => response.arrayBuffer())
+                    .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
+                    .then(decodedAudio => {
+                        cluster.audioBuffer = decodedAudio;
+                    })
+
+                // TODO: do this instead to actually load the file (probably needs to be tweaked a bit)
+                // if (ev.dataTransfer.items) {
+                //     var file = ev.dataTransfer.items[0].getAsFile();
+                //     var reader = new FileReader();
+                //     reader.onload = function(e) {
+                //     };
+                //     reader.readAsArrayBuffer(file);
+                // }
+            }
+        });
+
+    }
+
+
 });
 
 // Transport controls
@@ -382,7 +492,7 @@ document.getElementById('clear-button').addEventListener('click', () => {
 const recordButton = document.getElementById('record-button');
 
 // Toggle recording state when the button is clicked
-recordButton.addEventListener('click', function() {
+recordButton.addEventListener('click', function () {
     switch (recordingState) {
         case 'cleared':
             recordingState = 'recording';
