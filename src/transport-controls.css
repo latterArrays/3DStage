@@ -1,0 +1,21 @@
+#transport-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    background-color: #333;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.control-button {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.control-button img {
+    width: 30px;
+    height: 30px;
+}

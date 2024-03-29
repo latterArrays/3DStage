@@ -60,7 +60,7 @@ dat.GUI.prototype.removeFolder = function(name) {
     delete this.__folders[name];
     this.onResize();
   }
-  
+
 // Function to update the number of drums
 function updateDrums(numDrums) {
     // Remove existing drums and spotlights
@@ -249,4 +249,22 @@ document.addEventListener('mouseup', function (event) {
         selectedDrum = null; // Deselect the drum
         controls.enabled = true; // Re-enable OrbitControls
     }
+});
+
+// Transport controls
+document.getElementById('play-button').addEventListener('click', () => {
+    // Play functionality
+    alert("PLAY!");
+});
+
+document.getElementById('stop-button').addEventListener('click', () => {
+    // Stop functionality
+});
+
+document.getElementById('rewind-button').addEventListener('click', () => {
+    // Rewind functionality
+});
+
+document.getElementById('fast-forward-button').addEventListener('click', () => {
+    // Fast forward functionality
 });
