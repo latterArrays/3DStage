@@ -69,6 +69,8 @@ class InstrumentCluster {
         this.audioBuffer = null;
         this.sourceNode = null;
         this.index = null;
+        this.startTime = null;
+        this.offset = null;
     }
 }
 
@@ -375,16 +377,6 @@ function playAudio() {
     // Iterate through the instruments and play a track for each one that has a valid audio buffer
     instrumentClusters.forEach(cluster => {
         if (cluster.audioBuffer) {
-            if (cluster.sourceNode) cluster.sourceNode.disconnect();
-            cluster.sourceNode = audioCtx.createBufferSource();
-            cluster.sourceNode.buffer = cluster.audioBuffer;
-
-            var playbackSpeed = 1;
-            cluster.sourceNode.playbackRate.value = playbackSpeed;
-
-            cluster.sourceNode.connect(cluster.panner);
-            cluster.panner.connect(audioCtx.destination);
-
             cluster.sourceNode.start();
         }
     });
@@ -462,21 +454,38 @@ document.addEventListener('drop', function (ev) {
                 const url = getRandomAudioFilePath(cluster.index)
 
                 // For now, we are just testing with a static file
-                fetch(url)
-                    .then(response => response.arrayBuffer())
-                    .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
-                    .then(decodedAudio => {
-                        cluster.audioBuffer = decodedAudio;
-                    })
+                // fetch(url)
+                //     .then(response => response.arrayBuffer())
+                //     .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
+                //     .then(decodedAudio => {
+                //         cluster.audioBuffer = decodedAudio;
+                //     })
 
                 // TODO: do this instead to actually load the file (probably needs to be tweaked a bit)
-                // if (ev.dataTransfer.items) {
-                //     var file = ev.dataTransfer.items[0].getAsFile();
-                //     var reader = new FileReader();
-                //     reader.onload = function(e) {
-                //     };
-                //     reader.readAsArrayBuffer(file);
-                // }
+                if (ev.dataTransfer.items) {
+                    console.log(ev)
+                    var file = ev.dataTransfer.items[0].getAsFile();
+                    var reader = new FileReader();
+                    reader.onload = function(file) {
+                        console.log("Here is cluster in file load: " + cluster)
+                        audioCtx.decodeAudioData(file.target.result, function(buffer) {
+                            console.log("Here is cluster in buffer load: " + cluster)
+                            cluster.sourceNode = audioCtx.createBufferSource();
+                            cluster.audioBuffer = buffer;
+                            cluster.sourceNode.buffer = cluster.audioBuffer;
+                
+                            var playbackSpeed = 1;
+                            cluster.sourceNode.playbackRate.value = playbackSpeed;
+                
+                            cluster.sourceNode.connect(cluster.panner);
+                            cluster.panner.connect(audioCtx.destination);
+
+                        }) 
+
+                    };
+                    reader.readAsArrayBuffer(file);
+
+                }
             }
         });
 
