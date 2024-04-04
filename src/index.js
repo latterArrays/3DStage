@@ -305,8 +305,12 @@ document.addEventListener('mousemove', function (event) {
                 selectedinstrument.position.x = intersectionPoint.x;
                 selectedinstrument.position.z = intersectionPoint.z;
             } else if (dragDirection == 'vertical') {
-                selectedinstrument.position.y = intersectionPoint.y;
-            }
+                // Calculate displacement along the vertical axis using Pythagorean theorem
+                var deltaX = intersectionPoint.x - selectedinstrument.position.x;
+                var deltaZ = intersectionPoint.z - selectedinstrument.position.z;
+                var displacement = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+                selectedinstrument.position.y = displacement; 
+           }
 
 
             // Update spotlight target position (TODO only if what we are moving is an instrument and not the listener object)
@@ -331,15 +335,17 @@ document.addEventListener('mouseup', function (event) {
 
 // Shift key modifier
 document.addEventListener('keydown', function (event) {
-    if (event.shiftKey) {
+    if (event.key == "Shift") {
         dragDirection = 'vertical';
+        console.log(dragDirection)
     }
 });
 
 // Shift key modifier
 document.addEventListener('keyup', function (event) {
-    if (event.shiftKey) {
+    if (event.key == "Shift") {
         dragDirection = 'horizontal';
+        console.log(dragDirection)
     }
 });
 
