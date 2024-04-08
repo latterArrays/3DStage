@@ -12,6 +12,15 @@ scene.add(ambientLight);
 // Create audio context
 var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+
+
+// Trying to figure out record and download - media stream required for this
+const dest = audioCtx.createMediaStreamDestination();
+
+//recorder...
+const options = { mimeType: 'audio/webm' }; //force proper audio wav format; audio/wav does not work on macOS
+const recorder = new MediaRecorder(dest.stream, options);
+
 // Setup camera
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 5, 0); // TODO Fix initial position
@@ -481,9 +490,6 @@ function updateParameters() {
         cluster.lowShelfFilter.frequency.linearRampToValueAtTime(lowShelfFrequency, currentTime + transitionTime);
         cluster.highShelfFilter.frequency.linearRampToValueAtTime(highShelfFrequency, currentTime + transitionTime);
 
-        //cluster.lowShelfFilter.frequency.setValueAtTime(lowShelfFrequency, audioCtx.currentTime);
-        //cluster.highShelfFilter.frequency.setValueAtTime(highShelfFrequency, audioCtx.currentTime);
-
         // y position for playback speed
         const playbackSpeed = scaleValue(cluster.instrument.position.y, 0, inputEnd, 0, 2);
 
@@ -626,6 +632,7 @@ function loadAudioToInstrument(instrument, file) {
             instrument.sourceNode.connect(instrument.lowShelfFilter);
             instrument.lowShelfFilter.connect(instrument.highShelfFilter);
             instrument.highShelfFilter.connect(instrument.panner);
+            instrument.panner.connect(dest);
             instrument.panner.connect(audioCtx.destination);
 
         }) 
@@ -660,6 +667,27 @@ document.getElementById('clear-button').addEventListener('click', () => {
     }
 });
 
+
+let audioChunks = [];
+
+recorder.ondataavailable = e => {
+    audioChunks.push(e.data);
+};
+
+recorder.onstop = e => {
+    const blob = new Blob(audioChunks, { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    // Create a link to download the audio
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = 'recording.wav';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+};
+
+
 const recordButton = document.getElementById('record-button');
 
 // Toggle recording state when the button is clicked
@@ -668,12 +696,24 @@ recordButton.addEventListener('click', function () {
         case 'idle':
             recordingState = 'recording';
             this.className = 'recording';
+
+            audioChunks = []; // Reset the chunks array
+          
+            recorder.start();
+            console.log("start recording");
+
             break;
         case 'recording':
+            
             recordingState = 'saved';
             this.className = 'saved';
+
+            recorder.stop();
+
+            console.log("stop, download");
             break;
         case 'saved':
+
             recordingState = 'recording';
             this.className = 'recording';
             break;
