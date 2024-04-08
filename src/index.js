@@ -101,12 +101,28 @@ let recordingState = 'idle';
 // The position of the cluster is accessed via the instrument, ie instrument.position.{x,y,z}
 // This class is also where we will add per-instrument things like pitch, gain, hi/lo-pass filters, etc
 class InstrumentCluster {
-    constructor(instrument, spotlight, panner) {
+
+    //note the adjusted constructor to accomodate filters.
+    constructor(instrument, spotlight, lowShelfFilter, highShelfFilter, panner) {
         this.instrument = instrument;
         this.spotlight = spotlight;
-        this.panner = panner;
+        
+        //audio
         this.audioBuffer = null;
         this.sourceNode = null;
+
+        //set filter types and initial corner freqs?
+        this.lowShelfFilter = lowShelfFilter;
+        // this.lowShelfFilter.type = "lowshelf";
+        // this.lowShelfFilter.frequency.setValueAtTime(320, audioCtx.currentTime);
+        this.highShelfFilter = highShelfFilter;
+        // this.highShelfFilter.type = "highshelf"
+        // this.highShelfFilter.frequency.setValueAtTime(3200, audioCtx.currentTime);
+
+        //binaural
+        this.panner = panner;
+
+
         this.index = null;
         this.startTime = null;
         this.offset = null;
@@ -224,17 +240,27 @@ function updateInstruments(numInstruments) {
         // Create controls for this spotlight
         createOrUpdateSpotlightControls(spotlight, i);
 
-        // Create an audio buffer and panner node for this instrument
+        // Create an audio buffer, filter and panner node for this instrument
+        let lowShelfFilter = audioCtx.createBiquadFilter();
+        lowShelfFilter.type = "lowshelf";
+        lowShelfFilter.frequency.setValueAtTime(320, audioCtx.currentTime);
+        
+        let highShelfFilter = audioCtx.createBiquadFilter();
+        highShelfFilter.type = "highshelf";
+        highShelfFilter.frequency.setValueAtTime(3200, audioCtx.currentTime);
+
         let panner = audioCtx.createPanner();
         panner.panningModel = 'HRTF';
         panner.distanceModel = 'inverse';
         panner.setPosition(instrument.position.x, instrument.position.z, instrument.position.y); // Position the audio source to the instrument position
-        panner.orientationX.setValueAtTime(1, audioCtx.currentTime); // TODO assuming this needs to face the listener from where the cluster is, we'll need to modify this
+        
+        //set init pos to center
+        panner.orientationX.setValueAtTime(0, audioCtx.currentTime); // TODO assuming this needs to face the listener from where the cluster is, we'll need to modify this
         panner.orientationY.setValueAtTime(0, audioCtx.currentTime);
         panner.orientationZ.setValueAtTime(0, audioCtx.currentTime);
 
         //console.log('At time of insertion, instrument is ' + JSON.stringify(instrument))
-        const instrumentCluster = new InstrumentCluster(instrument, spotlight, panner); // Create instrumentCluster instance
+        const instrumentCluster = new InstrumentCluster(instrument, spotlight, lowShelfFilter, highShelfFilter, panner); // Create instrumentCluster instance
         instrumentCluster.index = i;
 
         instrumentClusters.push(instrumentCluster); // Push to clusters array
@@ -361,7 +387,9 @@ document.addEventListener('mousemove', function (event) {
         }
 
         // Update audio panners to reflect new positions
-        updatePanners();
+
+        //rename to updateParameters
+        updateParameters();
     }
 });
 
@@ -424,19 +452,69 @@ document.addEventListener('keyup', function (event) {
     }
 });
 
-// Update a each panner's position
+// Update a each panner's position - renamed to updateParameters()
 // TODO make sure the math is right on this (in terms of normalizing to the 3D scene)
-function updatePanners() {
+function updateParameters() {
     const rect = canvas.getBoundingClientRect();
 
     instrumentClusters.forEach(cluster => {
         // Z and Y are flipped
-        cluster.panner.positionX.value = cluster.instrument.position.x;
-        cluster.panner.positionY.value = cluster.instrument.position.z;
-        cluster.panner.positionZ.value = cluster.instrument.position.y;
+
+        let transitionTime = 0.1;
+        let currentTime = audioCtx.currentTime;
+
+
+        // for scaling function
+        const inputStart = -1, inputEnd = 1;
+
+        // 2d euclidean distance 
+        const distanceFromCenter = Math.sqrt(cluster.instrument.position.x ** 2 + cluster.instrument.position.z ** 2);
+
+        // needs to be fine tuned
+        const maxDistance = Math.sqrt((rect.width / 2) ** 2 + (rect.height / 2) ** 2);
+
+        // scale filter cutoff based on distance from center of stage
+        const lowShelfFrequency = scaleLog(distanceFromCenter, 0, maxDistance / 2, 20, 2000);
+        const highShelfFrequency = scaleLog(distanceFromCenter, 0, maxDistance / 2, 2000, 10000);
+
+        // frequencies based on distance
+        cluster.lowShelfFilter.frequency.linearRampToValueAtTime(lowShelfFrequency, currentTime + transitionTime);
+        cluster.highShelfFilter.frequency.linearRampToValueAtTime(highShelfFrequency, currentTime + transitionTime);
+
+        //cluster.lowShelfFilter.frequency.setValueAtTime(lowShelfFrequency, audioCtx.currentTime);
+        //cluster.highShelfFilter.frequency.setValueAtTime(highShelfFrequency, audioCtx.currentTime);
+
+        // y position for playback speed
+        const playbackSpeed = scaleValue(cluster.instrument.position.y, 0, inputEnd, 0, 2);
+
+        // playback speed
+        cluster.sourceNode.playbackRate.linearRampToValueAtTime(playbackSpeed, audioCtx.currentTime + 0.1);
+
+        // pan
+        cluster.panner.positionX.linearRampToValueAtTime(cluster.instrument.position.x, currentTime + transitionTime);
+        cluster.panner.positionY.linearRampToValueAtTime(cluster.instrument.position.z, currentTime + transitionTime); // Assuming Y is up and you want to use Z here
+        cluster.panner.positionZ.linearRampToValueAtTime(cluster.instrument.position.y, currentTime + transitionTime); // Assuming Z is forward/backward
+
+
+        
     });
 
 }
+
+//scale param values
+function scaleValue(input, inputStart, inputEnd, outputStart, outputEnd) {
+    return outputStart + ((input - inputStart) / (inputEnd - inputStart)) * (outputEnd - outputStart);
+}
+
+function scaleLog(input, inputStart, inputEnd, outputStart, outputEnd) {
+    input = Math.max(input, inputStart);
+  
+    var fraction = (input - inputStart) / (inputEnd - inputStart);
+    var logScaleOutput = outputStart * (outputEnd / outputStart) ** fraction;
+
+    return logScaleOutput;
+}
+
 
 // Play button
 function playAudio() {
@@ -474,6 +552,7 @@ function fetchAudio(url) {
         });
 }
 
+// Can we delete this?
 function getRandomAudioFilePath(index) {
     const audioFiles = [
         'src/audio/beat.mp3',
@@ -538,10 +617,15 @@ function loadAudioToInstrument(instrument, file) {
             instrument.audioBuffer = buffer;
             instrument.sourceNode.buffer = instrument.audioBuffer;
 
-            var playbackSpeed = 1;
+            instrument.sourceNode.loop = true;
+
+            //we need to figure out the best way to listen and scale each object's vertical value for playback speed
+            var playbackSpeed = 1;//document.getElementById('').value;
             instrument.sourceNode.playbackRate.value = playbackSpeed;
 
-            instrument.sourceNode.connect(instrument.panner);
+            instrument.sourceNode.connect(instrument.lowShelfFilter);
+            instrument.lowShelfFilter.connect(instrument.highShelfFilter);
+            instrument.highShelfFilter.connect(instrument.panner);
             instrument.panner.connect(audioCtx.destination);
 
         }) 
