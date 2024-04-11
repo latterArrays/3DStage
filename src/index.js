@@ -123,7 +123,7 @@ const guiParams = {
 };
 
 // Add controls for the number of instruments
-const numInstrumentsControl = gui.add(guiParams, 'numInstruments', 1, 4, 1).name('Number of Instruments').onChange(value => {
+const numInstrumentsControl = gui.add(guiParams, 'numInstruments', 1, 4, 1).name('Instruments').onChange(value => {
     updateInstruments(value);
 });
 

@@ -37,12 +37,14 @@
 .icon {
   background-color: transparent;
   border: none;
-  margin-right: 10px;
+  margin-right: 10px;   
+  opacity: 0.3; /* Adjust as needed */
+
 }
 
 .icon img{
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
 }
 
 .control-button {
