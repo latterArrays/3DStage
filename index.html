@@ -44,14 +44,15 @@
 </div>
 
 <!-- 
-for download modal overlay -->
-<div id="popup-backdrop" class="popup-backdrop" style="display:none;"></div>
-<div id="popup-notification" class="popup-content" style="display:none;">
-    <p>Your audio recording is ready for download. Please confirm you'd like to download your recording and ensure you ahve FFmpeg installed.</p>
-    <button id="confirmDownload">Download</button>
-    <button onclick="closePopup()">Cancel</button>
+generic modal overlay that can be used for record and delete transport controls -->
+<div id="modal-backdrop" class="modal-backdrop" style="display:none;"></div>
+<div id="modal-dialog" class="modal-dialog" style="display:none;">
+    <div class="modal-content">
+        <p id="modal-message">Your audio recording is ready for download. Please confirm.</p>
+        <button id="modal-confirm">Confirm</button>
+        <button onclick="closeModal()">Cancel</button>
+    </div>
 </div>
-
 
 </body>
 </html>

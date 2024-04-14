@@ -1,47 +1,52 @@
-.popup-backdrop {
+.modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7); /* Darker backdrop for better focus on modal */
-  z-index: 100;
+  top: 0;
+  left: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
 }
 
-.popup-content {
+.modal-dialog {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: auto;
-  max-width: 400px; /* Max width */
-  padding: 20px;
-  background: #484848; /* Matching the control bar background */
+  z-index: 1001;
+  background-color: #484848; /* Dark gray background */
   border-radius: 5px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* Smooth shadow for 3D effect */
-  z-index: 101;
-  color: white; /* Text color */
-  text-align: center; /* Centering the text */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Subtle shadow for depth */
+  color: #FFF; /* White text color */
   font-family: 'Arial', sans-serif; /* Modern font */
+  padding: 20px;
+  width: 300px; /* Fixed width */
+  box-sizing: border-box; /* Include padding in width */
 }
 
-.popup-content p {
+.modal-content {
+  text-align: center;
   margin-top: 0;
-  color: #FFF; /* White color for the text */
 }
 
-.popup-content button {
-  background-color: #626262; /* Lighter grey for buttons */
-  border: none;
-  border-radius: 4px;
-  padding: 10px 20px;
-  margin: 10px 5px 0 5px; /* Proper spacing around buttons */
-  cursor: pointer;
+.modal-dialog button {
+  margin-top: 20px;
+  background-color: transparent; /* Styling consistent with other buttons */
+  border: 1px solid #FFF; /* White border */
   color: white; /* White text */
-  font-size: 16px; /* Readable font size */
-  outline: none; /* Remove focus outline */
+  padding: 10px 20px;
+  text-transform: uppercase; /* Uppercase text */
+  font-weight: bold;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
 }
 
-.popup-content button:hover {
-  background-color: #505050; /* Slightly darker on hover */
+.modal-dialog button:hover {
+  background-color: #FFF; /* White background on hover */
+  color: #484848; /* Dark text on hover */
+}
+
+.modal-content p {
+  margin-bottom: 20px; /* Spacing below the text */
 }

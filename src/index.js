@@ -650,53 +650,7 @@ document.getElementById('stop-button').addEventListener('click', () => {
     stopAudio();
 });
 
-
-document.getElementById('download-button').addEventListener('click', function () {
-    if (!audioChunks.length) {
-        alert("No recording available to download.");
-        return;
-    }
-    showPopup();
-});
-
-function showPopup() {
-    document.getElementById('popup-backdrop').style.display = 'block';
-    document.getElementById('popup-notification').style.display = 'block';
-}
-
-function closePopup() {
-    document.getElementById('popup-backdrop').style.display = 'none';
-    document.getElementById('popup-notification').style.display = 'none';
-}
-
-document.getElementById('confirmDownload').addEventListener('click', function() {
-    const blob = new Blob(audioChunks, {type: 'audio/webm'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = 'recording.wav';
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    closePopup();
-});
-
-document.getElementById('clear-button').addEventListener('click', () => {
-    if (recordingState != 'saved') return;
-
-    const userConfirmed = window.confirm("Are you sure you want to delete your recording?");
-    if (userConfirmed) {
-        // Delete the recording
-
-        // Reset the recording button
-        recordingState = 'idle';
-        const recordButton = document.getElementById('record-button');
-        recordButton.className = 'idle';
-    }
-});
-
-
+//Recorder stuff: starting with a buffer to record audio into. should always be global.
 let audioChunks = [];
 
 recorder.ondataavailable = e => {
@@ -750,6 +704,72 @@ recordButton.addEventListener('click', function () {
             this.className = 'recording';
             break;
     }
+});
+
+// new generic modal approach to both download and delete transport controls
+document.addEventListener('DOMContentLoaded', function () {
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    const modalDialog = document.getElementById('modal-dialog');
+    const confirmBtn = document.getElementById('modal-confirm');
+    const messageParagraph = document.getElementById('modal-message');
+
+    window.showModal = function (message, onConfirm) { // Attach showModal to window for global access
+        messageParagraph.textContent = message;  // Set the text for the modal message
+
+        confirmBtn.onclick = function () {
+            if (typeof onConfirm === "function") {
+                onConfirm();  // Execute the confirm callback if it's a function
+            }
+            closeModal();  // Close the modal after confirmation
+        };
+
+        modalBackdrop.style.display = 'block';
+        modalDialog.style.display = 'block';
+    };
+
+    window.closeModal = function () {  // Also ensure closeModal is globally accessible
+        modalBackdrop.style.display = 'none';
+        modalDialog.style.display = 'none';
+    };
+
+    const downloadButton = document.getElementById('download-button');
+ 
+    if (downloadButton) {
+        downloadButton.addEventListener('click', function () {
+            if (!audioChunks.length) {
+                alert("No recording available to download.");
+                return;
+            }
+            window.showModal("Your audio recording is ready for download. Please confirm.", function () {
+                const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'recording.wav'; //wav but needs ffmpeg to play in audacity for cross platform
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            });
+        });
+    }
+});
+
+
+//button handlers like for 'clear' can also invoke showModal as needed
+document.getElementById('clear-button').addEventListener('click', function() {
+    if (recordingState !== 'saved' && !audioChunks.length) {
+        console.log("No recording to delete.");
+        return;
+    }
+    showModal("Are you sure you want to delete your recording?", function() {
+        audioChunks = []; // Clear the recorded data
+        recordingState = 'idle';
+        const recordButton = document.getElementById('record-button');
+        recordButton.className = 'idle';
+        console.log("Recording deleted.");
+    });
 });
 
 
