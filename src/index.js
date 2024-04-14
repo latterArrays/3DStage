@@ -650,28 +650,37 @@ document.getElementById('stop-button').addEventListener('click', () => {
     stopAudio();
 });
 
-// give user confirm dialog box 
+
 document.getElementById('download-button').addEventListener('click', function () {
-    if (confirm("Are you sure you want to download the audio file?")) {
-        
-        //ok
-        const blob = new Blob(audioChunks, { type: 'audio/wav' }); 
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = 'recording.wav'; 
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-    } 
-    else {
-        //cancel
-        console.log("Download cancelled.");
+    if (!audioChunks.length) {
+        alert("No recording available to download.");
+        return;
     }
+    showPopup();
 });
 
+function showPopup() {
+    document.getElementById('popup-backdrop').style.display = 'block';
+    document.getElementById('popup-notification').style.display = 'block';
+}
+
+function closePopup() {
+    document.getElementById('popup-backdrop').style.display = 'none';
+    document.getElementById('popup-notification').style.display = 'none';
+}
+
+document.getElementById('confirmDownload').addEventListener('click', function() {
+    const blob = new Blob(audioChunks, {type: 'audio/webm'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = 'recording.wav';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    closePopup();
+});
 
 document.getElementById('clear-button').addEventListener('click', () => {
     if (recordingState != 'saved') return;

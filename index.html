@@ -12,6 +12,7 @@
             display: block;
         }
     </style>
+    <link rel="stylesheet" href="src/dialog.css">
     <link rel="stylesheet" href="src/transport-controls.css">
 
 </head>
@@ -41,6 +42,16 @@
 
     <script type="module" src="/src/index.js"></script>
 </div>
+
+<!-- 
+for download modal overlay -->
+<div id="popup-backdrop" class="popup-backdrop" style="display:none;"></div>
+<div id="popup-notification" class="popup-content" style="display:none;">
+    <p>Your audio recording is ready for download. Please confirm you'd like to download your recording and ensure you ahve FFmpeg installed.</p>
+    <button id="confirmDownload">Download</button>
+    <button onclick="closePopup()">Cancel</button>
+</div>
+
 
 </body>
 </html>
