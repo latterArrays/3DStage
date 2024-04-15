@@ -88,7 +88,7 @@ loader.load('models/synth/scene.gltf', function (gltf) {
 loader.load('models/bass/scene.gltf', function (gltf) {
     bassTemplate = gltf.scene;
     bassTemplate.scale.set(1.3, 1.3, 1.3); // Scale up the bass
-    bassTemplate.rotation.x = Math.PI
+    bassTemplate.rotation.x = Math.PI/1.5
     bassTemplate.rotation.y = Math.PI
     bassTemplate.rotation.z = Math.PI
     console.log("Loaded bassTemplate from model");
@@ -242,19 +242,19 @@ function updateInstruments(numInstruments) {
         // Assign complementary colors to spotlights unique for each instrument
         // TODO change the cloned template once you have more models
         switch (i % 4) {
-            case 0:
+            case 2:
                 spotlight.color.set(0x00ffff); // Cyan spotlight
                 instrument = drumTemplate.clone(); // Drum
                 track = 'audio/beat.wav'
                 break;
 
-            case 1:
+            case 0:
                 spotlight.color.set(0xff00ff); // Magenta spotlight
                 instrument = synthTemplate.clone(); // Synth
                 track = 'audio/melody.wav'
                 break;
 
-            case 2:
+            case 1:
                 spotlight.color.set(0xcc0000); // Pink spotlight
                 instrument = padTemplate.clone(); // Pad
                 track = 'audio/pad.wav'
