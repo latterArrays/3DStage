@@ -2,7 +2,8 @@
   "dependencies": {
     "camera-controls": "^2.8.3",
     "dat.gui": "^0.7.9",
-    "three": "^0.162.0"
+    "three": "^0.162.0",
+    "webpack": "^5.91.0"
   },
   "name": "3dstage",
   "version": "1.0.0",
