@@ -1,5 +1,2 @@
-./node_nodules
-./node_nodules*
-./node_nodules/
-./node_nodules/*
+node_modules
 package-lock.json
