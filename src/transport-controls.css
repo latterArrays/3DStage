@@ -1,11 +1,50 @@
-#transport-controls {
+#info-controls {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
+    top: 20px;
+    left: 20px;
     display: flex;
-    background-color: #333;
+    background-color: #484848;
     padding: 10px;
     border-radius: 5px;
+}
+
+#transport-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  background-color: #484848;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+#camera-controls {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  padding: 10px;
+  display: flex;
+  background-color: #484848;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+#shift-icon.emphasized {
+  border: 2px solid #000; 
+  background-color: #ccc; 
+}
+
+.icon {
+  background-color: transparent;
+  border: none;
+  margin-right: 10px;   
+  opacity: 0.3; /* Adjust as needed */
+
+}
+
+.icon img{
+  width: 50px;
+  height: 50px;
 }
 
 .control-button {
@@ -20,60 +59,45 @@
     height: 60px;
 }
 
-.record-button {
+#record-button {
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    border: 2px solid #333; /* White circle border color */
+    border: 15px solid; /* White circle border color */
     position: relative;
-    background-color: #fff; /* White circle background color */
+    transition: background-color 0.5s, border-color 0.5s; /* Smooth transition for color changes */
     cursor: pointer;
 }
 
-.record-button::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 30px; /* Red dot size */
-    height: 30px;
-    border-radius: 50%;
-    background-color: transparent; /* Red dot color */
-    border: 2px solid red; /* Red dot border */
-    box-sizing: border-box;
-    opacity: 0;
-    animation: none;
-}
-
-.record-active .record-button::after {
-    opacity: 1;
-    background-color: red; /* Filled red dot color */
-    animation: blink 1s infinite alternate; /* Stop blinking animation */
-}
-
-.recording-saved .record-button::after {
-    opacity: 1;
-    background-color: red; /* Filled red dot color */
-    animation: none; /* Stop blinking animation */
-}
-
-@keyframes blink {
-    from {
-        opacity: 0;
+/* Idle state, yellow circle with red outline */
+.idle {
+    background-color: rgb(255, 255, 255);
+    border-color: red;
+  }
+  
+  /* Recording state, blinking red */
+  .recording {
+    background-color: rgb(254, 45, 45);
+    border-color: rgb(255, 255, 255);
+    animation: blinkAnimation 1s infinite; /* Blinking effect */
+  }
+  
+  /* Saved state, solid red */
+  .saved {
+    background-color: rgb(254, 45, 45);
+    border-color: red;
+  }
+  
+  /* Keyframes for blinking animation */
+  @keyframes blinkAnimation {
+    0% {
+      opacity: 1;
     }
-    to {
-        opacity: 1;
+    50% {
+      opacity: 0.5;
     }
-}
+    100% {
+      opacity: 1;
+    }
+  }
 
-#drop_zone {
-    border: 2px dashed #007bff;
-    border-radius: 5px;
-    padding: 20px;
-    text-align: center;
-    margin: 20px;
-    position: relative; /* Make drop_zone a positioning context */
-    height: 200px; /* Set a fixed height */
-    box-sizing: border-box;
-}

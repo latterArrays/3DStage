@@ -1,0 +1,52 @@
+.modal-backdrop {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.modal-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1001;
+  background-color: #484848; /* Dark gray background */
+  border-radius: 5px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Subtle shadow for depth */
+  color: #FFF; /* White text color */
+  font-family: 'Arial', sans-serif; /* Modern font */
+  padding: 20px;
+  width: 300px; /* Fixed width */
+  box-sizing: border-box; /* Include padding in width */
+}
+
+.modal-content {
+  text-align: center;
+  margin-top: 0;
+}
+
+.modal-dialog button {
+  margin-top: 20px;
+  background-color: transparent; /* Styling consistent with other buttons */
+  border: 1px solid #FFF; /* White border */
+  color: white; /* White text */
+  padding: 10px 20px;
+  text-transform: uppercase; /* Uppercase text */
+  font-weight: bold;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.modal-dialog button:hover {
+  background-color: #FFF; /* White background on hover */
+  color: #484848; /* Dark text on hover */
+}
+
+.modal-content p {
+  margin-bottom: 20px; /* Spacing below the text */
+}
