@@ -20,7 +20,8 @@
   color: #FFF; /* White text color */
   font-family: 'Arial', sans-serif; /* Modern font */
   padding: 20px;
-  width: 300px; /* Fixed width */
+  width: fit-content; 
+  max-width: 90%;
   box-sizing: border-box; /* Include padding in width */
 }
 

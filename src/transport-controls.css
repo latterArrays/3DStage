@@ -38,13 +38,23 @@
   background-color: transparent;
   border: none;
   margin-right: 10px;   
-  opacity: 0.3; /* Adjust as needed */
-
+  opacity: 0.3; 
+  transition: transform 0.5s;
 }
 
 .icon img{
   width: 50px;
   height: 50px;
+}
+
+@keyframes flash {
+  0% { background-color: transparent; }
+  50% { background-color: rgb(131, 255, 249); }
+  100% { background-color: transparent; }
+}
+
+.flash {
+  animation: flash 1s linear infinite;
 }
 
 .control-button {
