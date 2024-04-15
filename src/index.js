@@ -45,8 +45,8 @@ cameraControls.enableDamping = true;
 cameraControls.maxPolarAngle = Math.PI / 2;
 // cameraControls.maxZoom = 10;
 // cameraControls.minZoom = 5;
-// cameraControls.maxDistance = 20;
-// cameraControls.minDistance = 5;
+cameraControls.maxDistance = 20;
+cameraControls.minDistance = 5;
 
 // Set initial camera position and rotation
 cameraControls.setTarget(0, 0, 0);
