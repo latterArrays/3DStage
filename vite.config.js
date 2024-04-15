@@ -10,5 +10,5 @@ export default defineConfig({
       include: 'src/**/*.js',
     },
   },
-  base: "/3DStage"
+  base: "/3DStage/"
 });
