@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as dat from 'dat.gui';
+import CameraControls from 'camera-controls';
+
+CameraControls.install({ THREE: THREE });
 
 // Setup scene
 const scene = new THREE.Scene();
@@ -12,7 +15,11 @@ scene.add(ambientLight);
 // Create audio context
 var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-
+// variables to control button states
+var cameraLocked = false
+var playingAudio = false
+var cameraOrbiting = false
+var audioLoaded = false
 
 // Trying to figure out record and download - media stream required for this
 const dest = audioCtx.createMediaStreamDestination();
@@ -22,19 +29,31 @@ const options = { mimeType: 'audio/webm' }; //force proper audio wav format; aud
 const recorder = new MediaRecorder(dest.stream, options);
 
 // Setup camera
+const clock = new THREE.Clock();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 5, 0); // TODO Fix initial position
 
 // Setup renderer
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Setup controls
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.update();
+// Set up camera controls and constraints
+const cameraControls = new CameraControls(camera, renderer.domElement);
+cameraControls.enableDamping = true;
+// cameraControls.dampingFactor = 0.25;
+// cameraControls.minPolarAngle = 0;
+cameraControls.maxPolarAngle = Math.PI / 2;
+// cameraControls.maxZoom = 10;
+// cameraControls.minZoom = 5;
+cameraControls.maxDistance = 20;
+cameraControls.minDistance = 5;
 
+// Set initial camera position and rotation
+cameraControls.setTarget(0, 0, 0);
+cameraControls.setPosition(0, 5, 10);
+
+// Save the current state as the "home" state
+cameraControls.saveState();
 let selectedinstrument = null; // Variable to store the selected instrument for dragging 
 let dragDirection = 'horizontal'; // Determines which axis to move the instrument ( 'horizontal' | 'verital' )
 
@@ -69,9 +88,9 @@ loader.load('src/models/synth/scene.gltf', function (gltf) {
 loader.load('src/models/bass/scene.gltf', function (gltf) {
     bassTemplate = gltf.scene;
     bassTemplate.scale.set(1.3, 1.3, 1.3); // Scale up the bass
-    bassTemplate.rotation.x=Math.PI/4
-    bassTemplate.rotation.y=Math.PI/4
-    bassTemplate.rotation.z=Math.PI/4
+    bassTemplate.rotation.x=Math.PI
+    bassTemplate.rotation.y=Math.PI
+    bassTemplate.rotation.z=Math.PI
     console.log("Loaded bassTemplate from model");
 });
 
@@ -144,12 +163,19 @@ const instrumentClusters = [];
 
 // GUI parameters object
 const guiParams = {
-    numInstruments: 1 // Initial number of instruments
+    numInstruments: 1, // Initial number of instruments
+    orbitSpeed: 10 // Initial orbit speed of 10%
 };
 
 // Add controls for the number of instruments
 const numInstrumentsControl = gui.add(guiParams, 'numInstruments', 1, 4, 1).name('Instruments').onChange(value => {
     updateInstruments(value);
+});
+
+var orbitSpeed = 0.001;
+// Add orbit speed control from 0 to 100 (on change will scale it down by 100)
+gui.add(guiParams, 'orbitSpeed', 0, 100).name('Orbit Speed').onChange(value => {
+    orbitSpeed = value / 5000;
 });
 
 // Function to remove folder from GUI 
@@ -167,9 +193,16 @@ dat.GUI.prototype.removeFolder = function (name) {
 // Function to update the number of instruments
 function updateInstruments(numInstruments) {
 
-    // Stop audio tracks
-    stopAudio();
-
+    // Stop audio tracks if they are playing
+    if (playingAudio) {
+        stopAudio();
+        playingAudio = false;
+        // Reset the play button
+        const playButton = document.getElementById('play-button');
+        const img = playButton.querySelector('img');
+        img.src = 'src/icons/play-button-arrowhead.png';
+    }    
+    
     // Remove existing instruments and spotlights if they are less than numInstruments
     instrumentClusters.forEach(cluster => {
             scene.remove(cluster.instrument);
@@ -177,7 +210,7 @@ function updateInstruments(numInstruments) {
             scene.remove(cluster.spotlight);
 
             // Remove the folder associated with this spotlight
-            const folderName = `Spotlight ${cluster.index + 1}`;
+            const folderName = `Instrument ${cluster.index + 1}`;
             if (gui.__folders[folderName]) {
                 gui.removeFolder(folderName);
             }
@@ -240,7 +273,7 @@ function updateInstruments(numInstruments) {
         spotlight.penumbra = 0.2;
 
         // Set the position of the 3D model
-        instrument.position.set(x, 0.4, z); // Set position for this instrument instance
+        instrument.position.set(x, 1, z); // Set position for this instrument instance
         scene.add(instrument); // Add instrument instance to the scene
 
         // Add userData to mark instrument as draggable
@@ -274,12 +307,15 @@ function updateInstruments(numInstruments) {
 
         instrumentClusters.push(instrumentCluster); // Push to clusters array
 
-        // Set the initial audio buffer for the instrument
-        fetch(track) // TODO fix this initial load of audio
-            .then(response => response.blob())
-            .then(blob => {
-                loadAudioToInstrument(instrument, blob);
-            });
+         // Fetch the wav file in 'track' and convert it to a blob
+         fetch(track)
+         .then(response => response.blob())
+         .then(blob => {
+             // Load the audio buffer to the instrument
+             loadAudioToInstrument(instrumentCluster, blob);
+         })
+         .catch(error => console.error('Error:', error));
+            
     }
 }
 
@@ -292,7 +328,7 @@ function updateInstruments(numInstruments) {
 // TODO reduce the complexity of these controls once lighting is tied to other attributes of the instrument
 function createOrUpdateSpotlightControls(spotlight, index) {
     // Check if the folder exists, if it does, update the controls
-    let folder = gui.addFolder(`Spotlight ${index + 1}`);
+    let folder = gui.addFolder(`Instrument ${index + 1}`);
 
     // Add controls for color
     const colorControl = folder.addColor({
@@ -307,20 +343,55 @@ function createOrUpdateSpotlightControls(spotlight, index) {
 
 
 // Add stage
-const stageGeometry = new THREE.CircleGeometry(9, 32);
+const stageGeometry = new THREE.CylinderGeometry(9, 9, 1, 32);
 const stageMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, emissiveIntensity: .01 }); // Use MeshStandardMaterial with lower emissive intensity
 stageMaterial.emissive = new THREE.Color(0xffffff);
+
+
 const stage = new THREE.Mesh(stageGeometry, stageMaterial);
-stage.rotation.x = -Math.PI / 2; // Rotate to lay flat on the ground
+//stage.rotation.x = -Math.PI / 2; // Rotate to lay flat on the ground
 stage.isDraggable = false;
 scene.add(stage);
+// Lower the stage a little so the models are on top of it
+stage.position.y = -0.5;
 
 
+var orbitButtonRotation = 0;
 // Update function
 function animate() {
     requestAnimationFrame(animate);
-    controls.update();
+    
+    const delta = clock.getDelta();
+    cameraControls.update(delta);
+
+    // If the camera is orbiting, automatically rotate the camera around the center of the stage
+    if (cameraOrbiting && !isDragging) {
+         cameraControls.rotate(orbitSpeed, 0, true);
+
+         // Increment the rotation angle
+         orbitButtonRotation += 0.01; // Adjust the value as needed
+
+        // Spin the orbitting icon
+        document.getElementById('orbit-button').style.transform = `rotate(${orbitButtonRotation}rad)`;
+
+        // Update the position of the instrument clusters so they orbit around the center of the stage
+        instrumentClusters.forEach(cluster => { 
+            const angle = Math.atan2(cluster.instrument.position.z, cluster.instrument.position.x) - orbitSpeed; // Adjust the value as needed
+            const radius = Math.sqrt(cluster.instrument.position.x ** 2 + cluster.instrument.position.z ** 2);
+            cluster.instrument.position.x = radius * Math.cos(angle);
+            cluster.instrument.position.z = radius * Math.sin(angle);
+
+            // Update spotlight target position (TODO only if what we are moving is an instrument and not the listener object)
+            const spotlight = cluster.spotlight;
+            spotlight.target.position.copy(cluster.instrument.position);
+
+        });
+
+    }
+
     renderer.render(scene, camera);
+    //rename to updateParameters
+    updateParameters();
 }
 
 animate();
@@ -337,8 +408,6 @@ document.addEventListener('mousedown', function (event) {
     };
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
-    console.log(instrumentClusters.length)
-    //console.log(JSON.stringify(instrumentClusters,null,4))
 
     const draggableObjects = instrumentClusters.map(cluster => cluster.instrument);
     //console.log(JSON.stringify(draggableObjects,null,4))
@@ -350,7 +419,7 @@ document.addEventListener('mousedown', function (event) {
         while (selectedinstrument.parent.parent !== null) {
             selectedinstrument = selectedinstrument.parent;
         }
-        controls.enabled = false; // Disable OrbitControls while dragging
+        cameraControls.enabled = false; // Disable OrbitControls while dragging
         const spotlight = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument).spotlight;
         spotlight.intensity = spotlight.intensity * 4;
         document.getElementById('shift-icon').classList.add('emphasized');
@@ -388,7 +457,7 @@ document.addEventListener('mousemove', function (event) {
 
             // Update spotlight target position (TODO only if what we are moving is an instrument and not the listener object)
             const spotlight = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument).spotlight;
-            spotlight.target.position.copy(intersectionPoint);
+            spotlight.target.position.copy(selectedinstrument.position);
 
             if (event.shiftKey) {
                 addVerticalLine();
@@ -407,7 +476,10 @@ document.addEventListener('mouseup', function (event) {
     event.preventDefault();
     if (isDragging) {
         isDragging = false;
-        controls.enabled = true; // Re-enable OrbitControls
+
+        // Re-enable Camera controls if they are unlocked
+        cameraControls.enabled = !cameraLocked;
+        
         const spotlight = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument).spotlight;
         spotlight.intensity = spotlight.intensity / 4;
         selectedinstrument = null; // Deselect the instrument
@@ -493,6 +565,12 @@ function updateParameters() {
         // y position for playback speed
         const playbackSpeed = scaleValue(cluster.instrument.position.y, 0, inputEnd, 0, 2);
 
+        if (!cluster.sourceNode) {
+            console.log("Source node not found for cluster: " + cluster.index + ". Skipping...");
+            return;
+        }
+
+
         // playback speed
         cluster.sourceNode.playbackRate.linearRampToValueAtTime(playbackSpeed, audioCtx.currentTime + 0.1);
 
@@ -500,8 +578,6 @@ function updateParameters() {
         cluster.panner.positionX.linearRampToValueAtTime(cluster.instrument.position.x, currentTime + transitionTime);
         cluster.panner.positionY.linearRampToValueAtTime(cluster.instrument.position.z, currentTime + transitionTime); // Assuming Y is up and you want to use Z here
         cluster.panner.positionZ.linearRampToValueAtTime(cluster.instrument.position.y, currentTime + transitionTime); // Assuming Z is forward/backward
-
-
         
     });
 
@@ -526,7 +602,7 @@ function scaleLog(input, inputStart, inputEnd, outputStart, outputEnd) {
 function playAudio() {
     // Iterate through the instruments and play a track for each one that has a valid audio buffer
     instrumentClusters.forEach(cluster => {
-        if (cluster.audioBuffer) {
+        if (cluster.audioBuffer && cluster.sourceNode) {
             cluster.sourceNode.start();
         }
     });
@@ -534,11 +610,16 @@ function playAudio() {
 
 // Stop button
 function stopAudio() {
+    
     // Iterate through the instruments and stop the track for each one if it is playing
     instrumentClusters.forEach(cluster => {
         if (cluster.sourceNode) {
             cluster.sourceNode.stop();
-            cluster.sourceNode = null;
+
+            // Since audio buffers can only be stopped once, use the saved file on the instrument to reload the audio file to this instrument
+            if (cluster.savedFile) {
+                loadAudioToInstrument(cluster, cluster.savedFile);
+            }
         }
     });
 }
@@ -550,24 +631,14 @@ document.addEventListener('dragover', function (ev) {
 
 // Load audio URL to given instrument
 function fetchAudio(url) {
+    let file = null;
+    // Fetch the URL and return as a array buffer
     fetch(url)
         .then(response => response.arrayBuffer())
-        .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
-        .then(decodedAudio => {
-            audioBuffer = decodedAudio;
+        .then(arrayBuffer => {
+            file = new Blob([arrayBuffer], { type: 'audio/wav' });
         });
-}
-
-// Can we delete this?
-function getRandomAudioFilePath(index) {
-    const audioFiles = [
-        'src/audio/beat.mp3',
-        'src/audio/bass.wav',
-        'src/audio/melody.wav',
-        'src/audio/pad.wav',
-        'src/audio/beat.wav'
-    ];
-    return audioFiles[index];
+    return file;
 }
 
 // Drop audio file onto the scene 
@@ -606,9 +677,21 @@ document.addEventListener('drop', function (ev) {
                     console.log(ev)
                     var file = ev.dataTransfer.items[0].getAsFile();
                     loadAudioToInstrument(cluster,file);
-
-                }
-            }
+                    
+                    // Blink the spotlight twice to indicate that the audio has been loaded to THIS instrument
+                    const spotlight = cluster.spotlight;
+                    spotlight.intensity = 35;
+                    setTimeout(() => {
+                        spotlight.intensity = 2;
+                    }, 500);
+                    setTimeout(() => {
+                        spotlight.intensity = 35;
+                    }, 1000);
+                    setTimeout(() => {
+                        spotlight.intensity = 2;
+                    }, 1500);
+                        }
+                    }
         });
     }
 });
@@ -635,19 +718,114 @@ function loadAudioToInstrument(instrument, file) {
             instrument.panner.connect(dest);
             instrument.panner.connect(audioCtx.destination);
 
+            // Set parameters
+            updateParameters();
+            
         }) 
 
     };
     reader.readAsArrayBuffer(file);
+
+    // Keep the file around to recreate the audio buffer if needed (for starting and stopping)
+    instrument.savedFile = file;
+
+  
 }
 
 // Transport controls
 document.getElementById('play-button').addEventListener('click', () => {
-    playAudio();
+    // If the audio is already playing, stop it
+    if (playingAudio) {
+        stopAudio();
+        playingAudio = false;
+    } else {
+        playAudio();
+        playingAudio = true;
+    }
+
+    // Set the icon based on the state
+    const button = document.getElementById('play-button');
+    const img = button.querySelector('img');
+    img.src = playingAudio ? 'src/icons/stop-button.png' : 'src/icons/play-button-arrowhead.png';
+    
 });
 
-document.getElementById('stop-button').addEventListener('click', () => {
-    stopAudio();
+// Camera lock button
+document.getElementById('lock-button').addEventListener('click', () => {
+    cameraLocked = !cameraLocked;
+    cameraOrbiting = false;
+    cameraControls.enabled = !cameraLocked;
+    const button = document.getElementById('lock-button');
+    const img = button.querySelector('img');
+    img.src = cameraLocked ? 'src/icons/secured-lock.png' : 'src/icons/padlock-unlock.png';
+});
+
+// Camera orbit button
+document.getElementById('orbit-button').addEventListener('click', () => {
+    cameraOrbiting = !cameraOrbiting;
+    //cameraLocked = false;
+    //cameraControls.enabled = !cameraOrbiting;
+ });
+
+ // Camera home button
+document.getElementById('home-button').addEventListener('click', () => {
+    // Set the camera to the original position via cameraControlscamera.position.set(0, 5, 10);
+    cameraControls.reset(true);
+});
+
+window.onload = function() {
+    document.getElementById('info-button').classList.add('flash');
+};
+
+// Info button
+document.getElementById('info-button').addEventListener('click', () => {
+
+    // Show the modal with the instructions
+    showModal("Welcome to the Spatial Audio Mixer! Drag and drop audio files onto the instruments to load them. Move the instruments around to spatialize the audio. Use the play button to start the audio, and the lock button to unlock the camera for panning. Enjoy!", null);
+    document.getElementById('info-button').classList.remove('flash');
+});
+
+// About button
+document.getElementById('about-button').addEventListener('click', () => {
+    //Show the modal with information about used assets and images for the project, as well as our contact info
+    const aboutMessage = 
+    `Sound Stage was created by Richard Graham and Matthew Winchester for CSCI 6561 at The George Washington University.\n
+    Icons:\n
+    Circular arrow icons created by Dave Gandy - Flaticon (https://www.flaticon.com/free-icons/circular-arrow)\n
+    Spinning icons created by Andrejs Kirma - Flaticon (https://www.flaticon.com/free-icons/spinning)\n
+    Lock icons created by Dave Gandy - Flaticon (https://www.flaticon.com/free-icons/lock)\n
+    Lock icons created by Freepik - Flaticon (https://www.flaticon.com/free-icons/lock)\n
+    Homepage icons created by Aldo Cervantes - Flaticon (https://www.flaticon.com/free-icons/homepage)\n
+    Stop button icons created by SumberRejeki - Flaticon (https://www.flaticon.com/free-icons/stop-button)\n
+    Save icons created by Bharat Icons - Flaticon (https://www.flaticon.com/free-icons/save)\n
+    Trash can icons created by Freepik - Flaticon (https://www.flaticon.com/free-icons/trash-can)\n
+    Record icons created by Andrean Prabowo - Flaticon (https://www.flaticon.com/free-icons/record)\n
+    Cinema icons created by Kiranshastry - Flaticon (https://www.flaticon.com/free-icons/cinema)\n
+    Shift icons created by Freepik - Flaticon (https://www.flaticon.com/free-icons/shift)\n
+    Question icons created by Freepik - Flaticon (https://www.flaticon.com/free-icons/question)\n
+    Info icons created by Freepik - Flaticon (https://www.flaticon.com/free-icons/info)\n
+    \n
+    Models:\n
+    "Bass Guitar Low Poly Freebie" by Geug is licensed under Creative Commons Attribution (https://skfb.ly/6SPER)\n
+    "Oversized Drum Pad" by lukus1 is licensed under Creative Commons Attribution (https://skfb.ly/6YTGQ)\n
+    "Synth Keyboard mini" by modE is licensed under Creative Commons Attribution (https://skfb.ly/6nWVQ)\n
+    "Tribal Drum (Free)\n" by wolfgar74 is licensed under Creative Commons Attribution (https://skfb.ly/6XQSs)\n
+    "Basic Planes of the Head (Andrew Loomis)\n" by Shape Foundations is licensed under CC Attribution-NonCommercial-ShareAlike (https://skfb.ly/6QUv6)\n
+    \n
+    Software libraries:\n
+    Three.js (https://threejs.org/)\n
+    Web Audio API (https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)\n
+    Camera Controls (https://www.npmjs.com/package/camera-controls)\n`;
+
+    showModal(aboutMessage);
+    
+});
+
+// Reset button
+document.getElementById('reset-instruments').addEventListener('click', () => {
+    // Reset via the number of instruments
+    updateInstruments(guiParams.numInstruments);
+    console.log("Instruments reset");
 });
 
 //Recorder stuff: starting with a buffer to record audio into. should always be global.
@@ -680,9 +858,10 @@ const recordButton = document.getElementById('record-button');
 recordButton.addEventListener('click', function () {
     switch (recordingState) {
         case 'idle':
+        case 'saved':
             recordingState = 'recording';
             this.className = 'recording';
-
+            this.title = "Stop Audio Recording"
             audioChunks = []; // Reset the chunks array
           
             recorder.start();
@@ -695,13 +874,8 @@ recordButton.addEventListener('click', function () {
             this.className = 'saved';
 
             recorder.stop();
-
+            this.title = "Start Audio Recording"
             console.log("stop, download");
-            break;
-        case 'saved':
-
-            recordingState = 'recording';
-            this.className = 'recording';
             break;
     }
 });
