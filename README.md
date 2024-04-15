@@ -1,6 +1,6 @@
 ## 3DStage
 
-![3D Stage](public/screenshot.png)
+![3D Stage](screenshot.png)
 
 #### Installation
 To run the vizualization, you will need to install node and npm. Follow installation instructions for your OS.
