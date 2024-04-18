@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as dat from 'dat.gui';
 import CameraControls from 'camera-controls';
+import MediaRecorder from 'audio-recorder-polyfill'
 
 CameraControls.install({ THREE: THREE });
 
@@ -13,7 +14,7 @@ const ambientLight = new THREE.AmbientLight(0x666666); // soft white light
 scene.add(ambientLight);
 
 // Create audio context
-var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 192000 });
 
 // variables to control button states
 var cameraLocked = false
@@ -25,8 +26,13 @@ var audioLoaded = false
 const dest = audioCtx.createMediaStreamDestination();
 
 //recorder...
-const options = { mimeType: 'audio/webm' }; //force proper audio wav format; audio/wav does not work on macOS
+const options = { mimeType: 'audio/webm;codecs=opus' }; //force proper audio wav format; audio/wav does not work on macOS
 const recorder = new MediaRecorder(dest.stream, options);
+window.recorder = recorder;
+
+recorder.addEventListener('error', (event) => {
+    console.error('Error from MediaRecorder:', event.error);
+});
 
 // Setup camera
 const clock = new THREE.Clock();
@@ -829,26 +835,11 @@ document.getElementById('reset-instruments').addEventListener('click', () => {
 //Recorder stuff: starting with a buffer to record audio into. should always be global.
 let audioChunks = [];
 
-recorder.ondataavailable = e => {
-    audioChunks.push(e.data);
-};
-
-recorder.onstop = e => {
-
-    console.log("Recording stopped. Ready to download.");
-
-    // const blob = new Blob(audioChunks, { type: 'audio/wav' });
-    // const url = URL.createObjectURL(blob);
-    // // Create a link to download the audio
-    // const a = document.createElement('a');
-    // a.style.display = 'none';
-    // a.href = url;
-    // a.download = 'recording.wav';
-    // document.body.appendChild(a);
-    // a.click();
-    // window.URL.revokeObjectURL(url);
-};
-
+let chunks = [];
+recorder.addEventListener('dataavailable', (event) => {
+    console.log("Got em")
+    audioChunks.push(event.data);
+});
 
 const recordButton = document.getElementById('record-button');
 
