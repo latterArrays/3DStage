@@ -4,8 +4,12 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as dat from 'dat.gui';
 import CameraControls from 'camera-controls';
 import MediaRecorder from 'audio-recorder-polyfill'
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 
 CameraControls.install({ THREE: THREE });
+
 
 // Setup scene
 const scene = new THREE.Scene();
@@ -81,7 +85,7 @@ loader.load('models/drum/scene.gltf', function (gltf) {
     drumTemplate.scale.set(0.015, 0.015, 0.015); // Scale down the drum
     console.log("Loaded drum template from model");
     // Load one initial instrument
-    updateInstruments(1);
+    updateInstruments(2);
 
 });
 
@@ -161,6 +165,7 @@ class InstrumentCluster {
         this.startTime = null;
         this.offset = null;
         this.glowing = false;
+        this.heightColor = null; // Color for visual feedback of semitones
     }
 }
 
@@ -169,8 +174,8 @@ const instrumentClusters = [];
 
 // GUI parameters object
 const guiParams = {
-    numInstruments: 1, // Initial number of instruments
-    orbitSpeed: 10 // Initial orbit speed of 10%
+    numInstruments: 2, // Initial number of instruments
+    orbitSpeed:25 // Initial orbit speed of 10%
 };
 
 // Add controls for the number of instruments
@@ -178,7 +183,7 @@ const numInstrumentsControl = gui.add(guiParams, 'numInstruments', 1, 4, 1).name
     updateInstruments(value);
 });
 
-var orbitSpeed = 0.001;
+var orbitSpeed = 0.0025;
 // Add orbit speed control from 0 to 100 (on change will scale it down by 100)
 gui.add(guiParams, 'orbitSpeed', 0, 100).name('Orbit Speed').onChange(value => {
     orbitSpeed = value / 5000;
@@ -279,7 +284,7 @@ function updateInstruments(numInstruments) {
         spotlight.penumbra = 0.2;
 
         // Set the position of the 3D model
-        instrument.position.set(x, 0.5, z); // Set position for this instrument instance
+        instrument.position.set(x, 1, z); // Set position for this instrument instance
         scene.add(instrument); // Add instrument instance to the scene
 
         // Add userData to mark instrument as draggable
@@ -352,7 +357,7 @@ const stage = new THREE.Mesh(stageGeometry, stageMaterial);
 stage.isDraggable = false;
 scene.add(stage);
 // Lower the stage a little so the models are on top of it
-stage.position.y = -0.5;
+stage.position.y = -0.75;
 
 
 var orbitButtonRotation = 0;
@@ -422,6 +427,7 @@ document.addEventListener('mousedown', function (event) {
         const spotlight = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument).spotlight;
         spotlight.intensity = spotlight.intensity * 4;
         document.getElementById('shift-icon').classList.add('emphasized');
+        document.getElementById('z-icon').classList.add('emphasized');
 
     }
 });
@@ -450,7 +456,20 @@ document.addEventListener('mousemove', function (event) {
                 var deltaX = intersectionPoint.x - selectedinstrument.position.x;
                 var deltaZ = intersectionPoint.z - selectedinstrument.position.z;
                 var displacement = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-                selectedinstrument.position.y = displacement;
+                selectedinstrument.position.y = Math.min(displacement, heightMax); // Limit the height to the max constant
+            } else if (dragDirection == 'vertAll') {
+                // Move ALL instruments to the same height as this one
+                var deltaX = intersectionPoint.x - selectedinstrument.position.x;
+                var deltaZ = intersectionPoint.z - selectedinstrument.position.z;
+                var displacement = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+                const newHeight = Math.min(displacement, heightMax);
+
+                // Iterate on all instruments
+                instrumentClusters.forEach(cluster =>
+                    {
+                        cluster.instrument.position.y = newHeight;
+                    }
+                )
             }
 
 
@@ -483,6 +502,7 @@ document.addEventListener('mouseup', function (event) {
         spotlight.intensity = spotlight.intensity / 4;
         selectedinstrument = null; // Deselect the instrument
         document.getElementById('shift-icon').classList.remove('emphasized');
+        document.getElementById('z-icon').classList.remove('emphasized');
 
     }
 });
@@ -502,15 +522,37 @@ function addVerticalLine() {
     if (selectedinstrument) {
         if (verticalLine) removeVerticalLine()
 
-        const spotlight = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument).spotlight;
+            const height = selectedinstrument.position.y;
+            const semitone = scaleValue(height, heightStart, heightMax, semitoneMin, semitoneMax); // Map height to semitones
+            const roundedSemitone = Math.round(semitone)
 
-        const material = new THREE.LineBasicMaterial({ color: spotlight.color });
-        const points = [];
-        points.push(new THREE.Vector3(selectedinstrument.position.x, -50, selectedinstrument.position.z));
-        points.push(new THREE.Vector3(selectedinstrument.position.x, 50, selectedinstrument.position.z));
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        verticalLine = new THREE.Line(geometry, material);
-        scene.add(verticalLine);
+            // Calculate hue value
+            const hue = (roundedSemitone * (360 / semitoneMax)) % 360;  
+
+            const material = new LineMaterial({ 
+            color: new THREE.Color().setHSL(hue / 360, 1, 0.5), // Convert hue to range [0, 1]
+                linewidth: 15, // Set line thickness here
+                resolution: new THREE.Vector2(window.innerWidth, window.innerHeight) // Required for LineMaterial
+            });
+    
+            const points = [];
+            points.push(new THREE.Vector3(selectedinstrument.position.x, -50, selectedinstrument.position.z));
+            points.push(new THREE.Vector3(selectedinstrument.position.x, 50, selectedinstrument.position.z));
+            
+            //console.log(points)
+
+            if (points.length >= 2) {
+                const geometry = new LineGeometry();
+                let positions = points.map(p => [p.x, p.y, p.z]).flat();
+
+                geometry.setPositions(positions);
+            
+                verticalLine = new Line2(geometry, material);
+                verticalLine.computeLineDistances();
+                scene.add(verticalLine);
+            } else {
+                console.log("You dont have enough points :(")
+            }
     }
 }
 
@@ -521,6 +563,11 @@ document.addEventListener('keydown', function (event) {
         addVerticalLine();
 
     }
+
+    if (event.key == "z") {
+        dragDirection = 'vertAll';
+        addVerticalLine();
+    }
 });
 
 // Shift key modifier
@@ -528,9 +575,19 @@ document.addEventListener('keyup', function (event) {
     if (event.key == "Shift") {
         dragDirection = 'horizontal';
         removeVerticalLine();
+    }
 
+    if (event.key == "z") {
+        dragDirection = 'horizontal';
+        removeVerticalLine();
     }
 });
+
+// Constants for semitone and associated colors
+const semitoneMax = 24
+const semitoneMin = 0
+const heightMax = 4
+const heightStart = 1
 
 // Update a each panner's position - renamed to updateParameters()
 // TODO make sure the math is right on this (in terms of normalizing to the 3D scene)
@@ -538,14 +595,9 @@ function updateParameters() {
     const rect = canvas.getBoundingClientRect();
 
     instrumentClusters.forEach(cluster => {
-        // Z and Y are flipped
 
         let transitionTime = 0.1;
         let currentTime = audioCtx.currentTime;
-
-
-        // for scaling function
-        const inputStart = -1, inputEnd = 1;
 
         // 2d euclidean distance 
         const distanceFromCenter = Math.sqrt(cluster.instrument.position.x ** 2 + cluster.instrument.position.z ** 2);
@@ -562,10 +614,14 @@ function updateParameters() {
         cluster.highShelfFilter.frequency.linearRampToValueAtTime(highShelfFrequency, currentTime + transitionTime);
 
         // y position for playback speed
-        const playbackSpeed = scaleValue(cluster.instrument.position.y, 0, inputEnd, 0, 2);
+        const height = cluster.instrument.position.y;
+        const semitone = scaleValue(height, heightStart, heightMax, semitoneMin, semitoneMax);
+        const roundedSemitone = Math.round(semitone)
+        const playbackSpeed = Math.pow(2, roundedSemitone/12);
+        //console.log("Height: " + height + " raw semitone: " + semitone + " rounded semitone: " + roundedSemitone + " speed: " + playbackSpeed);
 
         if (!cluster.sourceNode) {
-            console.log("Source node not found for cluster: " + cluster.index + ". Skipping...");
+            // console.log("Source node not found for cluster: " + cluster.index + ". Skipping...");
             return;
         }
 
