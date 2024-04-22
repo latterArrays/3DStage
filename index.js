@@ -490,51 +490,60 @@ document.addEventListener('mousemove', function (event) {
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(mouse, camera);
 
-        let draggableObjects = instrumentClusters.map(cluster => cluster.instrument);
-        draggableObjects.push(stage)
-        //console.log(JSON.stringify(draggableObjects,null,4))
-        const intersects = raycaster.intersectObjects(draggableObjects);        
-        if (intersects.length > 0) {
-            const intersectionPoint = intersects[0].point;
+        // Create a plane for intersection
+        const plane = new THREE.Plane();
+        if (dragDirection == 'horizontal') {
+            plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), selectedinstrument.position);
+        } else {
+            // For vertical movement, use a plane perpendicular to the camera's viewing direction
+            plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()), selectedinstrument.position);
+        }
 
-            // Handle movement based on key modifier
-            if (dragDirection == 'horizontal') {
+        // Calculate intersection of raycaster and plane
+        const intersectionPoint = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, intersectionPoint);
+
+        // Handle movement based on key modifier
+        if (dragDirection == 'horizontal') {
+            const stageRadius = stage.geometry.parameters.radiusTop;
+            const distanceFromCenter = intersectionPoint.distanceTo(stage.position);
+            if (distanceFromCenter <= stageRadius) {
                 selectedinstrument.position.x = intersectionPoint.x;
                 selectedinstrument.position.z = intersectionPoint.z;
-            } else if (dragDirection == 'vertical') {
-                // Calculate displacement along the vertical axis using Pythagorean theorem
-                var deltaX = intersectionPoint.x - selectedinstrument.position.x;
-                var deltaZ = intersectionPoint.z - selectedinstrument.position.z;
-                var displacement = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-                selectedinstrument.position.y = Math.min(displacement, heightMax); // Limit the height to the max constant
-            } else if (dragDirection == 'vertAll') {
-                // Move ALL instruments to the same height as this one
-                var deltaX = intersectionPoint.x - selectedinstrument.position.x;
-                var deltaZ = intersectionPoint.z - selectedinstrument.position.z;
-                var displacement = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-                const newHeight = Math.min(displacement, heightMax);
+            }
+        } else if (dragDirection == 'vertical') {
+            // Set instrument y position to intersection y position
+            // Move ALL instruments to the same height as this one
+            const newHeight = intersectionPoint.y;
 
-                // Iterate on all instruments
-                instrumentClusters.forEach(cluster =>
-                    {
-                        cluster.instrument.position.y = newHeight;
-                    }
-                )
+            // Ensure it's not below the stage
+            const minHeight = heightMin;
+            if (newHeight >= minHeight) {
+                selectedinstrument.position.y = intersectionPoint.y;
             }
 
+        } else if (dragDirection == 'vertAll') {
+            // Move ALL instruments to the same height as this one
+            const newHeight = intersectionPoint.y;
 
-            // Update spotlight target position (TODO only if what we are moving is an instrument and not the listener object)
-            const spotlight = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument).spotlight;
-            spotlight.target.position.copy(selectedinstrument.position);
-
-            if (event.shiftKey) {
-                addVerticalLine();
+            // Ensure it's not below the stage
+            const minHeight = stage.position.y + stage.geometry.parameters.height;
+            if (newHeight >= minHeight) {
+                // Iterate on all instruments
+                instrumentClusters.forEach(cluster => {
+                    cluster.instrument.position.y = newHeight;
+                });
             }
         }
 
-        // Update audio panners to reflect new positions
+        // Update spotlight target position (TODO only if what we are moving is an instrument and not the listener object)
+        const spotlight = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument).spotlight;
+        spotlight.target.position.copy(selectedinstrument.position);
 
-        //rename to updateParameters
+        if (event.shiftKey) {
+            addVerticalLine();
+        }
+
         updateParameters();
     }
 });
@@ -638,6 +647,7 @@ const semitoneMax = 24
 const semitoneMin = 0
 const heightMax = 4
 const heightStart = 1
+const heightMin = 0
 
 // Update a each panner's position - renamed to updateParameters()
 // TODO make sure the math is right on this (in terms of normalizing to the 3D scene)
