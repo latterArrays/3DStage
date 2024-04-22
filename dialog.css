@@ -16,38 +16,48 @@
   z-index: 1001;
   background-color: #484848; /* Dark gray background */
   border-radius: 5px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Subtle shadow for depth */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
   color: #FFF; /* White text color */
   font-family: 'Arial', sans-serif; /* Modern font */
   padding: 20px;
   width: fit-content; 
   max-width: 90%;
-  box-sizing: border-box; /* Include padding in width */
+  box-sizing: border-box; /* Include padding and border in width */
+  text-align: left; /* Left aligned text for content */
 }
 
 .modal-content {
-  text-align: center;
   margin-top: 0;
+}
+
+.modal-dialog a {
+  color: #4a90e2; /* Softer blue color for links */
+  text-decoration: none; /* Removes underline from links */
+}
+
+.modal-dialog a:hover, .modal-dialog a:focus {
+  color: #357ABD; /* Darker blue for better visibility on hover/focus */
+  text-decoration: underline; /* Underline on hover/focus for clarity */
 }
 
 .modal-dialog button {
   margin-top: 20px;
-  background-color: transparent; /* Styling consistent with other buttons */
-  border: 1px solid #FFF; /* White border */
-  color: white; /* White text */
+  background-color: transparent; /* Transparent background for a flat look */
+  border: 1px solid #FFF; /* White border for contrast */
+  color: white; /* White text for visibility */
   padding: 10px 20px;
-  text-transform: uppercase; /* Uppercase text */
+  text-transform: uppercase; /* Uppercase text for styling */
   font-weight: bold;
   border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.3s, color 0.3s;
+  transition: background-color 0.3s, color 0.3s; /* Smooth transition for hover effects */
 }
 
 .modal-dialog button:hover {
-  background-color: #FFF; /* White background on hover */
-  color: #484848; /* Dark text on hover */
+  background-color: #FFF; /* White background on hover for visibility */
+  color: #484848; /* Dark gray text on hover for contrast */
 }
 
 .modal-content p {
-  margin-bottom: 20px; /* Spacing below the text */
+  margin-bottom: 20px; /* Spacing below paragraphs for separation */
 }
