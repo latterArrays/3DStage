@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as dat from 'dat.gui';
 import CameraControls from 'camera-controls';
@@ -9,7 +8,6 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 
 CameraControls.install({ THREE: THREE });
-
 
 // Setup scene
 const scene = new THREE.Scene();
@@ -29,7 +27,7 @@ var audioLoaded = false
 // Trying to figure out record and download - media stream required for this
 const dest = audioCtx.createMediaStreamDestination();
 
-//recorder...
+// recorder...
 const options = { mimeType: 'audio/webm;codecs=opus' }; //force proper audio wav format; audio/wav does not work on macOS
 const recorder = new MediaRecorder(dest.stream, options);
 window.recorder = recorder;
@@ -65,14 +63,13 @@ cameraControls.setPosition(0, 5, 10);
 // Save the current state as the "home" state
 cameraControls.saveState();
 let selectedinstrument = null; // Variable to store the selected instrument for dragging 
-let dragDirection = 'horizontal'; // Determines which axis to move the instrument ( 'horizontal' | 'verital' )
+let dragDirection = 'horizontal'; // Determines which axis to move the instrument ( 'horizontal' | 'verital' or 'vertAll' )
 
 const canvas = document.getElementById('spatialCanvas');
 
-// TODO create a model for the source position, similar to the isntrumentCluster class but not audio node or buffer or panner
 let sourcePosition = { x: canvas.width / 2, y: canvas.height / 2 }; // Initialize source position
 
-// Load instrument models (just the drum for now)
+// Load instrument models into templates we can clone on demand
 const loader = new GLTFLoader();
 let drumTemplate = null;
 let synthTemplate = null;
@@ -86,7 +83,7 @@ let isDragging = false;
 loader.load('models/drum/scene.gltf', function (gltf) {
     drumTemplate = gltf.scene;
     drumTemplate.scale.set(0.015, 0.015, 0.015); // Scale down the drum
-    console.log("Loaded drum template from model");
+    //console.log("Loaded drum template from model");
     // Load one initial instrument
     updateInstruments(2);
 
@@ -95,7 +92,7 @@ loader.load('models/drum/scene.gltf', function (gltf) {
 loader.load('models/synth/scene.gltf', function (gltf) {
     synthTemplate = gltf.scene;
     synthTemplate.scale.set(0.035, 0.035, 0.035); // Scale down the synth
-    console.log("Loaded synth template from model");
+    //console.log("Loaded synth template from model");
 });
 
 loader.load('models/bass/scene.gltf', function (gltf) {
@@ -104,16 +101,16 @@ loader.load('models/bass/scene.gltf', function (gltf) {
     bassTemplate.rotation.x = Math.PI/1.5
     bassTemplate.rotation.y = Math.PI
     bassTemplate.rotation.z = Math.PI
-    console.log("Loaded bassTemplate from model");
+    //console.log("Loaded bassTemplate from model");
 });
 
 loader.load('models/pad/scene.gltf', function (gltf) {
     padTemplate = gltf.scene;
     padTemplate.scale.set(0.6, 0.6, 0.6); // Scale down the pad
-    console.log("Loaded padTemplate from model");
+    //console.log("Loaded padTemplate from model");
 });
 
-//Load the head
+//Load the head model
 loader.load('models/head/scene.gltf', function (gltf) {
     let headTemplate = gltf.scene;
     headTemplate.scale.set(0.07, 0.07, 0.07); // Scale down the instrument
@@ -143,16 +140,15 @@ let recordingState = 'idle';
 // This class is also where we will add per-instrument things like pitch, gain, hi/lo-pass filters, etc
 class InstrumentCluster {
 
-    //note the adjusted constructor to accomodate filters.
     constructor(instrument, spotlight, lowShelfFilter, highShelfFilter, panner) {
         this.instrument = instrument;
         this.spotlight = spotlight;
 
-        //audio
+        // audio
         this.audioBuffer = null;
         this.sourceNode = null;
 
-        //set filter types and initial corner freqs?
+        // set filter types and initial corner freqs?
         this.lowShelfFilter = lowShelfFilter;
         // this.lowShelfFilter.type = "lowshelf";
         // this.lowShelfFilter.frequency.setValueAtTime(320, audioCtx.currentTime);
@@ -160,9 +156,8 @@ class InstrumentCluster {
         // this.highShelfFilter.type = "highshelf"
         // this.highShelfFilter.frequency.setValueAtTime(3200, audioCtx.currentTime);
 
-        //binaural
+        // binaural
         this.panner = panner;
-
 
         this.index = null;
         this.startTime = null;
@@ -228,7 +223,6 @@ function updateInstruments(numInstruments) {
         if (gui.__folders[folderName]) {
             gui.removeFolder(folderName);
         }
-
     });
 
     instrumentClusters.length = 0;
@@ -237,6 +231,7 @@ function updateInstruments(numInstruments) {
     const angleIncrement = (2 * Math.PI) / numInstruments;
     const radius = 5;
 
+    // Create instruments in a circle around the stage
     for (let i = 0; i < numInstruments; i++) {
         const angle = i * angleIncrement;
         const x = radius * Math.cos(angle);
@@ -252,9 +247,10 @@ function updateInstruments(numInstruments) {
         scene.add(spotlight.target); // Add spotlight target to the scene
         scene.add(spotlight); // Add spotlight to the scene
 
+        // Each instrument will have a unique 3D model and audio track
         let track = null;
+
         // Assign complementary colors to spotlights unique for each instrument
-        // TODO change the cloned template once you have more models
         switch (i % 4) {
             case 2:
                 spotlight.color.set(0x00ffff); // Cyan spotlight
@@ -310,8 +306,8 @@ function updateInstruments(numInstruments) {
         panner.distanceModel = 'inverse';
         panner.setPosition(instrument.position.x, instrument.position.z, instrument.position.y); // Position the audio source to the instrument position
 
-        //set init pos to center
-        panner.orientationX.setValueAtTime(0, audioCtx.currentTime); // TODO assuming this needs to face the listener from where the cluster is, we'll need to modify this
+        // Set init pos to center
+        panner.orientationX.setValueAtTime(0, audioCtx.currentTime);
         panner.orientationY.setValueAtTime(0, audioCtx.currentTime);
         panner.orientationZ.setValueAtTime(0, audioCtx.currentTime);
 
@@ -334,7 +330,6 @@ function updateInstruments(numInstruments) {
 }
 
 // Creates or updates spotlight controls and adds them to the UI
-// TODO reduce the complexity of these controls once lighting is tied to other attributes of the instrument
 function createOrUpdateSpotlightControls(spotlight, index) {
     // Check if the folder exists, if it does, update the controls
     let folder = gui.addFolder(`Instrument ${index + 1}`);
@@ -353,12 +348,10 @@ function createOrUpdateSpotlightControls(spotlight, index) {
 const stageGeometry = new THREE.CylinderGeometry(9, 9, 1, 32);
 const stageMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, emissiveIntensity: .01 }); // Use MeshStandardMaterial with lower emissive intensity
 stageMaterial.emissive = new THREE.Color(0xffffff);
-
-
 const stage = new THREE.Mesh(stageGeometry, stageMaterial);
-//stage.rotation.x = -Math.PI / 2; // Rotate to lay flat on the ground
 stage.isDraggable = false;
 scene.add(stage);
+
 // Lower the stage a little so the models are on top of it
 stage.position.y = -0.75;
 
@@ -395,14 +388,14 @@ function animate() {
         cameraControls.rotate(orbitSpeed, 0, true);
 
         // Increment the rotation angle
-        orbitButtonRotation += 0.01; // Adjust the value as needed
+        orbitButtonRotation += 0.01;
 
         // Spin the orbitting icon
         document.getElementById('orbit-button').style.transform = `rotate(${orbitButtonRotation}rad)`;
 
         // Update the position of the instrument clusters so they orbit around the center of the stage
         instrumentClusters.forEach(cluster => {
-            const angle = Math.atan2(cluster.instrument.position.z, cluster.instrument.position.x) - orbitSpeed; // Adjust the value as needed
+            const angle = Math.atan2(cluster.instrument.position.z, cluster.instrument.position.x) - orbitSpeed;
             const radius = Math.sqrt(cluster.instrument.position.x ** 2 + cluster.instrument.position.z ** 2);
             cluster.instrument.position.x = radius * Math.cos(angle);
             cluster.instrument.position.z = radius * Math.sin(angle);
@@ -412,7 +405,6 @@ function animate() {
             spotlight.target.position.copy(cluster.instrument.position);
 
         });
-
     }
 
     // 3D Arrow helpers
@@ -425,7 +417,7 @@ function animate() {
                 arrowHelpers.up.visible = false;
                 arrowHelpers.down.visible = false;
             }
-        } else if (dragDirection == 'vertical') {
+        } else if (dragDirection == 'vertical' || dragDirection == 'vertAll') {
             // If shift is held, show up and down arrows
             arrowHelpers.up.position.copy(selectedinstrument.position);
             arrowHelpers.down.position.copy(selectedinstrument.position);
@@ -434,7 +426,6 @@ function animate() {
             for (const direction of ['left', 'right', 'forward', 'backward']) {
                 arrowHelpers[direction].visible = false;
             }
-            
         }
     } else {
         for (const arrow of Object.values(arrowHelpers)) {
@@ -443,7 +434,6 @@ function animate() {
     }
 
     renderer.render(scene, camera);
-    //rename to updateParameters
     updateParameters();
 }
 
@@ -513,12 +503,11 @@ document.addEventListener('mousemove', function (event) {
             }
         } else if (dragDirection == 'vertical') {
             // Set instrument y position to intersection y position
-            // Move ALL instruments to the same height as this one
             const newHeight = intersectionPoint.y;
 
             // Ensure it's not below the stage
             const minHeight = heightMin;
-            if (newHeight >= minHeight) {
+            if (newHeight >= minHeight && newHeight <= heightMax) {
                 selectedinstrument.position.y = intersectionPoint.y;
             }
 
@@ -527,8 +516,8 @@ document.addEventListener('mousemove', function (event) {
             const newHeight = intersectionPoint.y;
 
             // Ensure it's not below the stage
-            const minHeight = stage.position.y + stage.geometry.parameters.height;
-            if (newHeight >= minHeight) {
+            const minHeight = heightMin;
+            if (newHeight >= minHeight && newHeight <= heightMax) {
                 // Iterate on all instruments
                 instrumentClusters.forEach(cluster => {
                     cluster.instrument.position.y = newHeight;
@@ -536,9 +525,13 @@ document.addEventListener('mousemove', function (event) {
             }
         }
 
-        // Update spotlight target position (TODO only if what we are moving is an instrument and not the listener object)
-        const spotlight = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument).spotlight;
-        spotlight.target.position.copy(selectedinstrument.position);
+        // Update spotlight target position 
+        const pickedInstrument = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument);
+        if (pickedInstrument && pickedInstrument.spotlight != null) {
+            pickedInstrument.spotlight.target.position.copy(selectedinstrument.position);
+        } else {
+            return;
+        }
 
         if (event.shiftKey) {
             addVerticalLine();
@@ -551,14 +544,18 @@ document.addEventListener('mousemove', function (event) {
 // Drop the instrument
 document.addEventListener('mouseup', function (event) {
     event.preventDefault();
-    if (isDragging) {
+    if (isDragging && selectedinstrument != null && instrumentClusters) {
         isDragging = false;
 
         // Re-enable Camera controls if they are unlocked
         cameraControls.enabled = !cameraLocked;
-
-        const spotlight = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument).spotlight;
-        spotlight.intensity = spotlight.intensity / 4;
+        const pickedInstrument = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument);
+        if (pickedInstrument && pickedInstrument.spotlight) {
+            const spotlight = instrumentClusters.find(cluster => cluster && cluster.instrument === selectedinstrument).spotlight;
+            spotlight.intensity = spotlight.intensity / 4;
+        } else {
+            return;
+        }
         selectedinstrument = null; // Deselect the instrument
         document.getElementById('shift-icon').classList.remove('emphasized');
         document.getElementById('z-icon').classList.remove('emphasized');
@@ -577,6 +574,7 @@ function removeVerticalLine() {
     }
 }
 
+// This draws a vertical line from the selected instrument to the stage (and beyond) to indicate the semitone value
 function addVerticalLine() {
     if (selectedinstrument) {
         if (verticalLine) removeVerticalLine()
@@ -586,20 +584,18 @@ function addVerticalLine() {
             const roundedSemitone = Math.round(semitone)
 
             // Calculate hue value
-            const hue = (roundedSemitone * (360 / semitoneMax)) % 360;  
+            const hue = (roundedSemitone * (360 / semitoneMax)) % 360;
 
-            const material = new LineMaterial({ 
-            color: new THREE.Color().setHSL(hue / 360, 1, 0.5), // Convert hue to range [0, 1]
-                linewidth: 15, // Set line thickness here
-                resolution: new THREE.Vector2(window.innerWidth, window.innerHeight) // Required for LineMaterial
+            const material = new LineMaterial({
+            color: new THREE.Color().setHSL(hue / 360, 1, 0.5),
+                linewidth: 15,
+                resolution: new THREE.Vector2(window.innerWidth, window.innerHeight)
             });
     
             const points = [];
             points.push(new THREE.Vector3(selectedinstrument.position.x, -50, selectedinstrument.position.z));
             points.push(new THREE.Vector3(selectedinstrument.position.x, 50, selectedinstrument.position.z));
             
-            //console.log(points)
-
             if (points.length >= 2) {
                 const geometry = new LineGeometry();
                 let positions = points.map(p => [p.x, p.y, p.z]).flat();
@@ -610,7 +606,7 @@ function addVerticalLine() {
                 verticalLine.computeLineDistances();
                 scene.add(verticalLine);
             } else {
-                console.log("You dont have enough points :(")
+                //console.log("You dont have enough points :(")
             }
     }
 }
@@ -623,7 +619,7 @@ document.addEventListener('keydown', function (event) {
 
     }
 
-    if (event.key == "z") {
+    if (event.key == "a") {
         dragDirection = 'vertAll';
         addVerticalLine();
     }
@@ -636,7 +632,7 @@ document.addEventListener('keyup', function (event) {
         removeVerticalLine();
     }
 
-    if (event.key == "z") {
+    if (event.key == "a") {
         dragDirection = 'horizontal';
         removeVerticalLine();
     }
@@ -650,7 +646,6 @@ const heightStart = 1
 const heightMin = 0
 
 // Update a each panner's position - renamed to updateParameters()
-// TODO make sure the math is right on this (in terms of normalizing to the 3D scene)
 function updateParameters() {
     const rect = canvas.getBoundingClientRect();
 
@@ -678,10 +673,10 @@ function updateParameters() {
         const semitone = scaleValue(height, heightStart, heightMax, semitoneMin, semitoneMax);
         const roundedSemitone = Math.round(semitone)
         const playbackSpeed = Math.pow(2, roundedSemitone/12);
-        //console.log("Height: " + height + " raw semitone: " + semitone + " rounded semitone: " + roundedSemitone + " speed: " + playbackSpeed);
+        ////console.log("Height: " + height + " raw semitone: " + semitone + " rounded semitone: " + roundedSemitone + " speed: " + playbackSpeed);
 
         if (!cluster.sourceNode) {
-            // console.log("Source node not found for cluster: " + cluster.index + ". Skipping...");
+            // //console.log("Source node not found for cluster: " + cluster.index + ". Skipping...");
             return;
         }
 
@@ -789,7 +784,7 @@ document.addEventListener('drop', function (ev) {
             if (intersectedObject.position == cluster.instrument.position) {
                 // Bingo, we are dropping a file onto THIS cluster
                 if (ev.dataTransfer.items) {
-                    console.log(ev)
+                    //console.log(ev)
                     var file = ev.dataTransfer.items[0].getAsFile();
                     loadAudioToInstrument(cluster, file);
 
@@ -819,16 +814,16 @@ document.addEventListener('drop', function (ev) {
 function loadAudioToInstrument(instrument, file) {
     var reader = new FileReader();
     reader.onload = function (file) {
-        console.log("Here is instrument in file load: " + instrument)
+        //console.log("Here is instrument in file load: " + instrument)
         audioCtx.decodeAudioData(file.target.result, function (buffer) {
-            console.log("Here is cluster in buffer load: " + instrument)
+            //console.log("Here is cluster in buffer load: " + instrument)
             instrument.sourceNode = audioCtx.createBufferSource();
             instrument.audioBuffer = buffer;
             instrument.sourceNode.buffer = instrument.audioBuffer;
 
             instrument.sourceNode.loop = true;
 
-            //we need to figure out the best way to listen and scale each object's vertical value for playback speed
+            // We need to figure out the best way to listen and scale each object's vertical value for playback speed
             var playbackSpeed = 1;//document.getElementById('').value;
             instrument.sourceNode.playbackRate.value = playbackSpeed;
 
@@ -848,8 +843,6 @@ function loadAudioToInstrument(instrument, file) {
 
     // Keep the file around to recreate the audio buffer if needed (for starting and stopping)
     instrument.savedFile = file;
-
-
 }
 
 // Transport controls
@@ -882,15 +875,18 @@ document.getElementById('lock-button').addEventListener('click', () => {
 
 // Camera orbit button
 document.getElementById('orbit-button').addEventListener('click', () => {
-    cameraOrbiting = !cameraOrbiting;
-    //cameraLocked = false;
-    //cameraControls.enabled = !cameraOrbiting;
+    cameraOrbiting = !cameraOrbiting && !cameraLocked;
 });
 
 // Camera home button
 document.getElementById('home-button').addEventListener('click', () => {
-    // Set the camera to the original position via cameraControlscamera.position.set(0, 5, 10);
+    // Set the camera to the original position
     cameraControls.reset(true);
+    cameraOrbiting = false;
+    cameraLocked = false;
+    const button = document.getElementById('lock-button');
+    const img = button.querySelector('img');
+    img.src = cameraLocked ? 'icons/secured-lock.png' : 'icons/padlock-unlock.png';
 });
 
 window.onload = function () {
@@ -945,7 +941,7 @@ document.getElementById('about-button').addEventListener('click', () => {
 document.getElementById('reset-instruments').addEventListener('click', () => {
     // Reset via the number of instruments
     updateInstruments(guiParams.numInstruments);
-    console.log("Instruments reset");
+    //console.log("Instruments reset");
 });
 
 //Recorder stuff: starting with a buffer to record audio into. should always be global.
@@ -953,7 +949,7 @@ let audioChunks = [];
 
 let chunks = [];
 recorder.addEventListener('dataavailable', (event) => {
-    console.log("Got em")
+    //console.log("Got em")
     audioChunks.push(event.data);
 });
 
@@ -970,7 +966,7 @@ recordButton.addEventListener('click', function () {
             audioChunks = []; // Reset the chunks array
 
             recorder.start();
-            console.log("start recording");
+            //console.log("start recording");
 
             break;
         case 'recording':
@@ -980,7 +976,7 @@ recordButton.addEventListener('click', function () {
 
             recorder.stop();
             this.title = "Start Audio Recording"
-            console.log("stop, download");
+            //console.log("stop, download");
             break;
     }
 });
@@ -1039,7 +1035,7 @@ document.addEventListener('DOMContentLoaded', function () {
 //button handlers like for 'clear' can also invoke showModal as needed
 document.getElementById('clear-button').addEventListener('click', function () {
     if (recordingState !== 'saved' && !audioChunks.length) {
-        console.log("No recording to delete.");
+        //console.log("No recording to delete.");
         return;
     }
     showModal("Are you sure you want to delete your recording?", function () {
@@ -1047,7 +1043,7 @@ document.getElementById('clear-button').addEventListener('click', function () {
         recordingState = 'idle';
         const recordButton = document.getElementById('record-button');
         recordButton.className = 'idle';
-        console.log("Recording deleted.");
+        //console.log("Recording deleted.");
     });
 });
 
