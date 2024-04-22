@@ -49,11 +49,13 @@ generic modal overlay that can be used for record and delete transport controls 
 <div id="modal-backdrop" class="modal-backdrop" style="display:none;"></div>
 <div id="modal-dialog" class="modal-dialog" style="display:none;">
     <div class="modal-content">
-        <p id="modal-message">Your audio recording is ready for download. Please confirm.</p>
-        <button id="modal-confirm">Confirm</button>
-        <button onclick="closeModal()">Cancel</button>
+        <p id="modal-message"></p>
+        <button id="modal-confirm" style="display:none;">Confirm</button>
+        <button id="modal-cancel" style="display:none;" onclick="closeModal()">Cancel</button>
+        <button id="modal-continue" style="display:none;" onclick="closeModal()">Continue</button>
     </div>
 </div>
+
 
 </body>
 </html>

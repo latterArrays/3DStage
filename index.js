@@ -893,48 +893,143 @@ window.onload = function () {
     document.getElementById('info-button').classList.add('flash');
 };
 
-// Info button
-document.getElementById('info-button').addEventListener('click', () => {
 
-    // Show the modal with the instructions
-    showModal("Welcome to the Spatial Audio Mixer! Drag and drop audio files onto the instruments to load them. Move the instruments around to spatialize the audio. Use the play button to start the audio, and the lock button to unlock the camera for panning. Enjoy!", null);
-    document.getElementById('info-button').classList.remove('flash');
-});
 
-// About button
-document.getElementById('about-button').addEventListener('click', () => {
-    //Show the modal with information about used assets and images for the project, as well as our contact info
-    const aboutMessage =
-        `Sound Stage was created by Richard Graham and Matthew Winchester for CSCI 6561 at The George Washington University.\n
-    Icons:\n
-    Circular arrow icons created by Dave Gandy - Flaticon (https://www.flaticon.com/free-icons/circular-arrow)\n
-    Spinning icons created by Andrejs Kirma - Flaticon (https://www.flaticon.com/free-icons/spinning)\n
-    Lock icons created by Dave Gandy - Flaticon (https://www.flaticon.com/free-icons/lock)\n
-    Lock icons created by Freepik - Flaticon (https://www.flaticon.com/free-icons/lock)\n
-    Homepage icons created by Aldo Cervantes - Flaticon (https://www.flaticon.com/free-icons/homepage)\n
-    Stop button icons created by SumberRejeki - Flaticon (https://www.flaticon.com/free-icons/stop-button)\n
-    Save icons created by Bharat Icons - Flaticon (https://www.flaticon.com/free-icons/save)\n
-    Trash can icons created by Freepik - Flaticon (https://www.flaticon.com/free-icons/trash-can)\n
-    Record icons created by Andrean Prabowo - Flaticon (https://www.flaticon.com/free-icons/record)\n
-    Cinema icons created by Kiranshastry - Flaticon (https://www.flaticon.com/free-icons/cinema)\n
-    Shift icons created by Freepik - Flaticon (https://www.flaticon.com/free-icons/shift)\n
-    Question icons created by Freepik - Flaticon (https://www.flaticon.com/free-icons/question)\n
-    Info icons created by Freepik - Flaticon (https://www.flaticon.com/free-icons/info)\n
-    \n
-    Models:\n
-    "Bass Guitar Low Poly Freebie" by Geug is licensed under Creative Commons Attribution (https://skfb.ly/6SPER)\n
-    "Oversized Drum Pad" by lukus1 is licensed under Creative Commons Attribution (https://skfb.ly/6YTGQ)\n
-    "Synth Keyboard mini" by modE is licensed under Creative Commons Attribution (https://skfb.ly/6nWVQ)\n
-    "Tribal Drum (Free)\n" by wolfgar74 is licensed under Creative Commons Attribution (https://skfb.ly/6XQSs)\n
-    "Basic Planes of the Head (Andrew Loomis)\n" by Shape Foundations is licensed under CC Attribution-NonCommercial-ShareAlike (https://skfb.ly/6QUv6)\n
-    \n
-    Software libraries:\n
-    Three.js (https://threejs.org/)\n
-    Web Audio API (https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)\n
-    Camera Controls (https://www.npmjs.com/package/camera-controls)\n`;
+document.addEventListener('DOMContentLoaded', function () {
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    const modalDialog = document.getElementById('modal-dialog');
+    const confirmBtn = document.getElementById('modal-confirm');
+    const cancelBtn = document.getElementById('modal-cancel');  // Assuming a cancel button exists
+    const continueBtn = document.getElementById('modal-continue');  // Assuming a continue button exists
+    const messageParagraph = document.getElementById('modal-message');
 
-    showModal(aboutMessage);
+    window.showModal = function (message, onConfirm, useContinueOnly = false) {
+        messageParagraph.innerHTML = message;  // Set the HTML content
 
+        // Adjust visibility of buttons based on the context
+        if (useContinueOnly) {
+            confirmBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+            continueBtn.style.display = 'block';
+            continueBtn.onclick = function () {
+                closeModal();
+            };
+        } else {
+            confirmBtn.style.display = 'block';
+            cancelBtn.style.display = 'block';
+            continueBtn.style.display = 'none';
+            confirmBtn.onclick = function () {
+                if (typeof onConfirm === "function") {
+                    onConfirm();  // Execute the confirm callback if it's a function
+                }
+                closeModal();  // Close the modal after confirmation
+            };
+        }
+
+        modalBackdrop.style.display = 'block';
+        modalDialog.style.display = 'block';
+    };
+
+    window.closeModal = function () {
+        modalBackdrop.style.display = 'none';
+        modalDialog.style.display = 'none';
+    };
+
+    const downloadButton = document.getElementById('download-button');
+    if (downloadButton) {
+        downloadButton.addEventListener('click', function () {
+            if (!audioChunks.length) {
+                alert("No recording available to download.");
+                return;
+            }
+            window.showModal("Your audio recording is ready for download. Please confirm.", function () {
+                const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'recording.webm';  // Change to .webm to match the MIME type
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, false);
+        });
+    }
+
+    const clearButton = document.getElementById('clear-button');
+    if (clearButton) {
+        clearButton.addEventListener('click', function () {
+            if (recordingState !== 'saved' && !audioChunks.length) {
+                console.log("No recording to delete.");
+                return;
+            }
+            window.showModal("Are you sure you want to delete your recording?", function () {
+                audioChunks = [];  // Clear the recorded data
+                recordingState = 'idle';
+                const recordButton = document.getElementById('record-button');
+                recordButton.className = 'idle';
+                console.log("Recording deleted.");
+            }, false);
+        });
+    }
+
+    document.getElementById('info-button').addEventListener('click', () => {
+        // Show the modal with informational text
+        const infoMessage = `<div id="modal-instructions" class="modal-instructions">
+        <h1>3D Stage by Grinchester Game Studio</h1>
+        <p>Welcome to the Spatial Audio Mixer! Drag and drop audio files onto the instruments to load them. Move the instruments around to spatialize the audio. Use the play button to start the audio, and the lock button to unlock the camera for panning. Enjoy!</p>
+        <h2>3D Stage - User Instructions</h2>
+        <p><strong>Prerequisites for User Audio Samples:</strong></p>
+        <ul>
+            <li>Audio files should be recorded at the <strong>same samplerate</strong> to ensure matched repitching between elements based on their assigned color.</li>
+            <li>Audio files should be the <strong>same length</strong> to ensure synchronicity between samples when they playback and repeat (loop).</li>
+        </ul>
+        <p><strong>Setup Instructions:</strong></p>
+        <ol>
+            <li>Set the number of desired instruments using the slider located in the top-right of the user interface.</li>
+            <li>Drop a <code>.wav</code> or <code>.mp3</code> file onto each individual instrument icon.</li>
+            <li>Once all audio samples have been loaded onto their respective instrument icons, click the playback button on the transport.</li>
+            <li>Once you’ve dialed in your instruments, you can record and download your mix using the record and download buttons on the transport.</li>
+        </ol>
+    </div>
+    `;
+        window.showModal(infoMessage, null, true);  // true means we use the "Continue" button only
+    });
+
+    document.getElementById('about-button').addEventListener('click', () => {
+        const aboutMessage = `<strong>Icons:</strong>
+        <ul>
+            <li>Circular arrow icons created by <a href="https://www.flaticon.com/free-icons/circular-arrow" target="_blank">Dave Gandy - Flaticon</a></li>
+            <li>Spinning icons created by <a href="https://www.flaticon.com/free-icons/spinning" target="_blank">Andrejs Kirma - Flaticon</a></li>
+            <li>Lock icons created by <a href="https://www.flaticon.com/free-icons/lock" target="_blank">Dave Gandy - Flaticon</a> and <a href="https://www.flaticon.com/free-icons/lock" target="_blank">Freepik - Flaticon</a></li>
+            <li>Homepage icons created by <a href="https://www.flaticon.com/free-icons/homepage" target="_blank">Aldo Cervantes - Flaticon</a></li>
+            <li>Stop button icons created by <a href="https://www.flaticon.com/free-icons/stop-button" target="_blank">SumberRejeki - Flaticon</a></li>
+            <li>Save icons created by <a href="https://www.flaticon.com/free-icons/save" target="_blank">Bharat Icons - Flaticon</a></li>
+            <li>Trash can icons created by <a href="https://www.flaticon.com/free-icons/trash-can" target="_blank">Freepik - Flaticon</a></li>
+            <li>Record icons created by <a href="https://www.flaticon.com/free-icons/record" target="_blank">Andrean Prabowo - Flaticon</a></li>
+            <li>Cinema icons created by <a href="https://www.flaticon.com/free-icons/cinema" target="_blank">Kiranshastry - Flaticon</a></li>
+            <li>Shift icons created by <a href="https://www.flaticon.com/free-icons/shift" target="_blank">Freepik - Flaticon</a></li>
+            <li>Question icons created by <a href="https://www.flaticon.com/free-icons/question" target="_blank">Freepik - Flaticon</a></li>
+            <li>Info icons created by <a href="https://www.flaticon.com/free-icons/info" target="_blank">Freepik - Flaticon</a></li>
+        </ul>
+        <strong>Models:</strong>
+        <ul>
+            <li>"Bass Guitar Low Poly Freebie" by Geug is licensed under Creative Commons Attribution <a href="https://skfb.ly/6SPER" target="_blank">https://skfb.ly/6SPER</a></li>
+            <li>"Oversized Drum Pad" by lukus1 is licensed under Creative Commons Attribution <a href="https://skfb.ly/6YTGQ" target="_blank">https://skfb.ly/6YTGQ</a></li>
+            <li>"Synth Keyboard mini" by modE is licensed under Creative Commons Attribution <a href="https://skfb.ly/6nWVQ" target="_blank">https://skfb.ly/6nWVQ</a></li>
+            <li>"Tribal Drum (Free)" by wolfgar74 is licensed under Creative Commons Attribution <a href="https://skfb.ly/6XQSs" target="_blank">https://skfb.ly/6XQSs</a></li>
+            <li>"Basic Planes of the Head (Andrew Loomis)" by Shape Foundations is licensed under CC Attribution-NonCommercial-ShareAlike <a href="https://skfb.ly/6QUv6" target="_blank">https://skfb.ly/6QUv6</a></li>
+        </ul>
+        <strong>Software libraries:</strong>
+        <ul>
+            <li>Three.js <a href="https://threejs.org/" target="_blank">https://threejs.org/</a></li>
+            <li>Web Audio API <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API" target="_blank">https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API</a></li>
+            <li>Camera Controls <a href="https://www.npmjs.com/package/camera-controls" target="_blank">https://www.npmjs.com/package/camera-controls</a></li>
+        </ul>`;  // Your about message HTML content
+
+        window.showModal(aboutMessage, null, true);  // true means we use the "Continue" button only
+    });
 });
 
 // Reset button
@@ -986,26 +1081,42 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalBackdrop = document.getElementById('modal-backdrop');
     const modalDialog = document.getElementById('modal-dialog');
     const confirmBtn = document.getElementById('modal-confirm');
+    const cancelBtn = document.getElementById('modal-cancel');  // Assuming a cancel button exists
+    const continueBtn = document.getElementById('modal-continue');  // Assuming a continue button exists
     const messageParagraph = document.getElementById('modal-message');
 
-    window.showModal = function (message, onConfirm) { // Attach showModal to window for global access
-        messageParagraph.textContent = message;  // Set the text for the modal message
+    window.showModal = function (message, onConfirm, useContinueOnly = false) {
+        messageParagraph.innerHTML = message;  // Set the HTML content
 
-        confirmBtn.onclick = function () {
-            if (typeof onConfirm === "function") {
-                onConfirm();  // Execute the confirm callback if it's a function
-            }
-            closeModal();  // Close the modal after confirmation
-        };
+        // Adjust visibility of buttons based on the context
+        if (useContinueOnly) {
+            confirmBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+            continueBtn.style.display = 'block';
+            continueBtn.onclick = function () {
+                closeModal();
+            };
+        } else {
+            confirmBtn.style.display = 'block';
+            cancelBtn.style.display = 'block';
+            continueBtn.style.display = 'none';
+            confirmBtn.onclick = function () {
+                if (typeof onConfirm === "function") {
+                    onConfirm();  // Execute the confirm callback if it's a function
+                }
+                closeModal();  // Close the modal after confirmation
+            };
+        }
 
         modalBackdrop.style.display = 'block';
         modalDialog.style.display = 'block';
     };
 
-    window.closeModal = function () {  // Also ensure closeModal is globally accessible
+    window.closeModal = function () {
         modalBackdrop.style.display = 'none';
         modalDialog.style.display = 'none';
     };
+
 
     const downloadButton = document.getElementById('download-button');
 
@@ -1026,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-            });
+            }, false);
         });
     }
 });
@@ -1038,13 +1149,13 @@ document.getElementById('clear-button').addEventListener('click', function () {
         //console.log("No recording to delete.");
         return;
     }
-    showModal("Are you sure you want to delete your recording?", function () {
+    window.showModal("Are you sure you want to delete your recording?", function () {
         audioChunks = []; // Clear the recorded data
         recordingState = 'idle';
         const recordButton = document.getElementById('record-button');
         recordButton.className = 'idle';
         //console.log("Recording deleted.");
-    });
+    }, false);
 });
 
 
