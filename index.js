@@ -79,6 +79,9 @@ let synthTemplate = null;
 let bassTemplate = null;
 let padTemplate = null;
 
+// Event listeners for mouse movement and release
+let isDragging = false;
+
 // Load instrument models
 loader.load('models/drum/scene.gltf', function (gltf) {
     drumTemplate = gltf.scene;
@@ -359,6 +362,25 @@ scene.add(stage);
 // Lower the stage a little so the models are on top of it
 stage.position.y = -0.75;
 
+// Directional arrows
+// Create arrow helpers
+const arrowDirections = {
+    up: new THREE.Vector3(0, 1, 0),
+    down: new THREE.Vector3(0, -1, 0),
+    left: new THREE.Vector3(-1, 0, 0),
+    right: new THREE.Vector3(1, 0, 0),
+    forward: new THREE.Vector3(0, 0, 1),
+    backward: new THREE.Vector3(0, 0, -1)
+};
+
+const arrowHelpers = {};
+
+for (const [direction, vector] of Object.entries(arrowDirections)) {
+    const arrow = new THREE.ArrowHelper(vector, new THREE.Vector3(), 1.5, 0xffffff, 0.5, 0.5);
+    arrow.visible = false;
+    scene.add(arrow);
+    arrowHelpers[direction] = arrow;
+}
 
 var orbitButtonRotation = 0;
 // Update function
@@ -393,6 +415,33 @@ function animate() {
 
     }
 
+    // 3D Arrow helpers
+    if (isDragging) {
+        if (dragDirection == 'horizontal') {
+            // If shift is not held, show left, right, forward, and backward arrows
+            for (const direction of ['left', 'right', 'forward', 'backward']) {
+                arrowHelpers[direction].position.copy(selectedinstrument.position);
+                arrowHelpers[direction].visible = true;
+                arrowHelpers.up.visible = false;
+                arrowHelpers.down.visible = false;
+            }
+        } else if (dragDirection == 'vertical') {
+            // If shift is held, show up and down arrows
+            arrowHelpers.up.position.copy(selectedinstrument.position);
+            arrowHelpers.down.position.copy(selectedinstrument.position);
+            arrowHelpers.up.visible = true;
+            arrowHelpers.down.visible = true;
+            for (const direction of ['left', 'right', 'forward', 'backward']) {
+                arrowHelpers[direction].visible = false;
+            }
+            
+        }
+    } else {
+        for (const arrow of Object.values(arrowHelpers)) {
+            arrow.visible = false;
+        }
+    }
+
     renderer.render(scene, camera);
     //rename to updateParameters
     updateParameters();
@@ -400,8 +449,6 @@ function animate() {
 
 animate();
 
-// Event listeners for mouse movement and release
-let isDragging = false;
 
 // Mouse click initial handler
 document.addEventListener('mousedown', function (event) {
@@ -443,7 +490,10 @@ document.addEventListener('mousemove', function (event) {
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(mouse, camera);
 
-        const intersects = raycaster.intersectObject(stage);
+        let draggableObjects = instrumentClusters.map(cluster => cluster.instrument);
+        draggableObjects.push(stage)
+        //console.log(JSON.stringify(draggableObjects,null,4))
+        const intersects = raycaster.intersectObjects(draggableObjects);        
         if (intersects.length > 0) {
             const intersectionPoint = intersects[0].point;
 
