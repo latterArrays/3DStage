@@ -4213,7 +4213,7 @@ void main() {
             <li>Once you’ve dialed in your instruments, you can record and download your mix using the record and download buttons on the transport.</li>
         </ol>
     </div>
-    `,null,!0)}),document.getElementById("about-button").addEventListener("click",()=>{window.showModal(`<strong>Icons:</strong>
+    `,null,!0),document.getElementById("info-button").classList.remove("flash")}),document.getElementById("about-button").addEventListener("click",()=>{window.showModal(`<strong>Icons:</strong>
         <ul>
             <li>Circular arrow icons created by <a href="https://www.flaticon.com/free-icons/circular-arrow" target="_blank">Dave Gandy - Flaticon</a></li>
             <li>Spinning icons created by <a href="https://www.flaticon.com/free-icons/spinning" target="_blank">Andrejs Kirma - Flaticon</a></li>

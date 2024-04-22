@@ -995,6 +995,8 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>
     `;
         window.showModal(infoMessage, null, true);  // true means we use the "Continue" button only
+        document.getElementById('info-button').classList.remove('flash');
+
     });
 
     document.getElementById('about-button').addEventListener('click', () => {
