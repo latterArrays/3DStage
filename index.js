@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as dat from 'dat.gui';
 import CameraControls from 'camera-controls';
-import MediaRecorder from 'audio-recorder-polyfill'
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import RecordRTC, { StereoAudioRecorder } from 'recordrtc';
 
 CameraControls.install({ THREE: THREE });
 
@@ -26,15 +26,24 @@ var audioLoaded = false
 
 // Trying to figure out record and download - media stream required for this
 const dest = audioCtx.createMediaStreamDestination();
+dest.channelCount = 2; // Set output to stereo
 
-// recorder...
-const options = { mimeType: 'audio/webm;codecs=opus' }; //force proper audio wav format; audio/wav does not work on macOS
-const recorder = new MediaRecorder(dest.stream, options);
+// Initial recorder
+let recorder = new RecordRTC(dest.stream, {
+    type: 'audio',
+    mimeType: 'audio/wav',
+    recorderType: StereoAudioRecorder,
+    numberOfAudioChannels: 2,
+    desiredSampRate: 192000
+});
+
+let recordedBlob = null;
+
 window.recorder = recorder;
 
-recorder.addEventListener('error', (event) => {
-    console.error('Error from MediaRecorder:', event.error);
-});
+recorder.onerror = (error) => {
+    console.error('Error from MediaRecorder:', error);
+};
 
 // Setup camera
 const clock = new THREE.Clock();
@@ -938,17 +947,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const downloadButton = document.getElementById('download-button');
     if (downloadButton) {
         downloadButton.addEventListener('click', function () {
-            if (!audioChunks.length) {
-                alert("No recording available to download.");
+            if (recordedBlob == null) {
+                alert("No recording available to download, if you just ended a recording please wait a few seconds and try again.");
                 return;
             }
             window.showModal("Your audio recording is ready for download. Please confirm.", function () {
-                const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                const url = URL.createObjectURL(blob);
+                const url = URL.createObjectURL(recordedBlob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                a.download = 'recording.webm';  // Change to .webm to match the MIME type
+                a.download = 'recording.wav';  // Change to .webm to match the MIME type
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -960,16 +968,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const clearButton = document.getElementById('clear-button');
     if (clearButton) {
         clearButton.addEventListener('click', function () {
-            if (recordingState !== 'saved' && !audioChunks.length) {
-                console.log("No recording to delete.");
+            if (recordingState !== 'saved' && recordedBlob == null) {
+                //console.log("No recording to delete.");
                 return;
             }
             window.showModal("Are you sure you want to delete your recording?", function () {
-                audioChunks = [];  // Clear the recorded data
+                recordedBlob = null;  // Clear the recorded data
                 recordingState = 'idle';
                 const recordButton = document.getElementById('record-button');
                 recordButton.className = 'idle';
-                console.log("Recording deleted.");
+                //console.log("Recording deleted.");
             }, false);
         });
     }
@@ -1041,15 +1049,6 @@ document.getElementById('reset-instruments').addEventListener('click', () => {
     //console.log("Instruments reset");
 });
 
-//Recorder stuff: starting with a buffer to record audio into. should always be global.
-let audioChunks = [];
-
-let chunks = [];
-recorder.addEventListener('dataavailable', (event) => {
-    //console.log("Got em")
-    audioChunks.push(event.data);
-});
-
 const recordButton = document.getElementById('record-button');
 
 // Toggle recording state when the button is clicked
@@ -1060,9 +1059,18 @@ recordButton.addEventListener('click', function () {
             recordingState = 'recording';
             this.className = 'recording';
             this.title = "Stop Audio Recording"
-            audioChunks = []; // Reset the chunks array
+            recordedBlob = null; // Reset the chunks array
 
-            recorder.start();
+            // Create a new RecordRTC instance
+            recorder = new RecordRTC(dest.stream, {
+                type: 'audio',
+                mimeType: 'audio/wav',
+                recorderType: StereoAudioRecorder,
+                numberOfAudioChannels: 2,
+                desiredSampRate: 192000
+            });
+
+            recorder.startRecording();
             //console.log("start recording");
 
             break;
@@ -1071,93 +1079,16 @@ recordButton.addEventListener('click', function () {
             recordingState = 'saved';
             this.className = 'saved';
 
-            recorder.stop();
+            // To stop recording
+            recorder.stopRecording(function() {
+                recordedBlob = recorder.getBlob();
+            });
             this.title = "Start Audio Recording"
-            //console.log("stop, download");
+
             break;
     }
 });
 
-// new generic modal approach to both download and delete transport controls
-document.addEventListener('DOMContentLoaded', function () {
-    const modalBackdrop = document.getElementById('modal-backdrop');
-    const modalDialog = document.getElementById('modal-dialog');
-    const confirmBtn = document.getElementById('modal-confirm');
-    const cancelBtn = document.getElementById('modal-cancel');  // Assuming a cancel button exists
-    const continueBtn = document.getElementById('modal-continue');  // Assuming a continue button exists
-    const messageParagraph = document.getElementById('modal-message');
 
-    window.showModal = function (message, onConfirm, useContinueOnly = false) {
-        messageParagraph.innerHTML = message;  // Set the HTML content
-
-        // Adjust visibility of buttons based on the context
-        if (useContinueOnly) {
-            confirmBtn.style.display = 'none';
-            cancelBtn.style.display = 'none';
-            continueBtn.style.display = 'block';
-            continueBtn.onclick = function () {
-                closeModal();
-            };
-        } else {
-            confirmBtn.style.display = 'block';
-            cancelBtn.style.display = 'block';
-            continueBtn.style.display = 'none';
-            confirmBtn.onclick = function () {
-                if (typeof onConfirm === "function") {
-                    onConfirm();  // Execute the confirm callback if it's a function
-                }
-                closeModal();  // Close the modal after confirmation
-            };
-        }
-
-        modalBackdrop.style.display = 'block';
-        modalDialog.style.display = 'block';
-    };
-
-    window.closeModal = function () {
-        modalBackdrop.style.display = 'none';
-        modalDialog.style.display = 'none';
-    };
-
-
-    const downloadButton = document.getElementById('download-button');
-
-    if (downloadButton) {
-        downloadButton.addEventListener('click', function () {
-            if (!audioChunks.length) {
-                alert("No recording available to download.");
-                return;
-            }
-            window.showModal("Your audio recording is ready for download. Please confirm.", function () {
-                const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = 'recording.wav'; //wav but needs ffmpeg to play in audacity for cross platform
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            }, false);
-        });
-    }
-});
-
-
-//button handlers like for 'clear' can also invoke showModal as needed
-document.getElementById('clear-button').addEventListener('click', function () {
-    if (recordingState !== 'saved' && !audioChunks.length) {
-        //console.log("No recording to delete.");
-        return;
-    }
-    window.showModal("Are you sure you want to delete your recording?", function () {
-        audioChunks = []; // Clear the recorded data
-        recordingState = 'idle';
-        const recordButton = document.getElementById('record-button');
-        recordButton.className = 'idle';
-        //console.log("Recording deleted.");
-    }, false);
-});
 
 
