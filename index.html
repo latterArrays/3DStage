@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -17,31 +18,31 @@
 
 </head>
 <body>
+
     <div id="spatialCanvas">
+          <div id="info-controls">
+            <button title="When highlighted, hold shift for alternate movement controls" id="shift-icon" class="icon"><img src="icons/shift.png"></button>
+            <button title="When highlighted, hold z for alternate movement controls for all instruments" id="z-icon" class="icon"><img src="icons/letter-a.png"></button>
+            <button title="About" id="about-button" class="control-button"><img src="icons/question.png"></button>
+            <button title="Instructions" id="info-button" class="control-button"><img src="icons/info.png"></button>
+            <button title="Reset Instruments" id="reset-instruments" class="control-button"><img src="icons/undo-arrow.png"></button>
+        </div>
 
-    <div id="info-controls">
-        <button title="When highlighted, hold shift for alternate movement controls" id="shift-icon" class="icon"><img src="icons/shift.png"></button>
-        <button title="When highlighted, hold z for alternate movement controls for all instruments" id="z-icon" class="icon"><img src="icons/letter-a.png"></button>
-        <button title="About" id="about-button" class="control-button"><img src="icons/question.png"></button>
-        <button title="Instructions" id="info-button" class="control-button"><img src="icons/info.png"></button>
-        <button title="Reset Instruments" id="reset-instruments" class="control-button"><img src="icons/undo-arrow.png"></button>
-    </div>
+        <div id="camera-controls">
+            <button title="Camera Control Menu" id="camera-icon" class="icon"><img src="icons/video-camera.png"></button>
+            <button title="Camera Home" id="home-button" class="control-button"><img src="icons/home.png"></button>
+            <button title="Toggle Camera Position Lock" id="lock-button" class="control-button"><img src="icons/padlock-unlock.png"></button>
+            <button title="Toggle Scene Orbit" id="orbit-button" class="control-button"><img src="icons/spinning.png"></button>
+        </div>
 
-    <div id="camera-controls">
-        <button title="Camera Control Menu" id="camera-icon" class="icon"><img src="icons/video-camera.png"></button>
-        <button title="Camera Home" id="home-button" class="control-button"><img src="icons/home.png"></button>
-        <button title="Toggle Camera Position Lock" id="lock-button" class="control-button"><img src="icons/padlock-unlock.png"></button>
-        <button title="Toggle Scene Orbit" id="orbit-button" class="control-button"><img src="icons/spinning.png"></button>
-    </div>
+        <div id="transport-controls">
+            <button title="Play/Stop Audio" id="play-button" class="control-button"><img src="icons/play-button-arrowhead.png" alt="Play"></button>
+            <button title="Begin Audio Recording" id="record-button" class="record-button"><span class="record-icon"></span></button>
+            <button title="Clear Audio Recording" id="clear-button" class="control-button"><img src="icons/trash-can.png" alt="Clear"></button>
+            <button title="Download Audio Recording" id="download-button" class="control-button"><img src="icons/downloads.png" alt="Download"></button>
+        </div>
 
-    <div id="transport-controls">
-        <button title="Play/Stop Audio" id="play-button" class="control-button"><img src="icons/play-button-arrowhead.png" alt="Play"></button>
-        <button title="Begin Audio Recording" id="record-button" class="record-button"><span class="record-icon"></span></button>
-        <button title="Clear Audio Recording" id="clear-button" class="control-button"><img src="icons/trash-can.png" alt="Clear"></button>
-        <button title="Download Audio Recording" id="download-button" class="control-button"><img src="icons/downloads.png" alt="Download"></button>
-    </div>
-
-    <script type="module" src="index.js"></script>
+         <script type="module" src="index.js"></script>
 </div>
 
 <!-- 

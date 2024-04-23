@@ -16,7 +16,7 @@ const ambientLight = new THREE.AmbientLight(0x666666); // soft white light
 scene.add(ambientLight);
 
 // Create audio context
-var audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 192000 });
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 // variables to control button states
 var cameraLocked = false
@@ -33,8 +33,8 @@ let recorder = new RecordRTC(dest.stream, {
     type: 'audio',
     mimeType: 'audio/wav',
     recorderType: StereoAudioRecorder,
-    numberOfAudioChannels: 2,
-    desiredSampRate: 192000
+   // numberOfAudioChannels: 2,
+   // desiredSampRate: 44100
 });
 
 let recordedBlob = null;
@@ -510,7 +510,8 @@ document.addEventListener('mousemove', function (event) {
                 selectedinstrument.position.x = intersectionPoint.x;
                 selectedinstrument.position.z = intersectionPoint.z;
             }
-        } else if (dragDirection == 'vertical') {
+        } 
+        else if (dragDirection == 'vertical') {
             // Set instrument y position to intersection y position
             const newHeight = intersectionPoint.y;
 
@@ -520,7 +521,8 @@ document.addEventListener('mousemove', function (event) {
                 selectedinstrument.position.y = intersectionPoint.y;
             }
 
-        } else if (dragDirection == 'vertAll') {
+        } 
+        else if (dragDirection == 'vertAll') {
             // Move ALL instruments to the same height as this one
             const newHeight = intersectionPoint.y;
 
@@ -538,7 +540,8 @@ document.addEventListener('mousemove', function (event) {
         const pickedInstrument = instrumentClusters.find(cluster => cluster.instrument === selectedinstrument);
         if (pickedInstrument && pickedInstrument.spotlight != null) {
             pickedInstrument.spotlight.target.position.copy(selectedinstrument.position);
-        } else {
+        } 
+        else {
             return;
         }
 
@@ -562,7 +565,8 @@ document.addEventListener('mouseup', function (event) {
         if (pickedInstrument && pickedInstrument.spotlight) {
             const spotlight = instrumentClusters.find(cluster => cluster && cluster.instrument === selectedinstrument).spotlight;
             spotlight.intensity = spotlight.intensity / 4;
-        } else {
+        } 
+        else {
             return;
         }
         selectedinstrument = null; // Deselect the instrument
@@ -688,7 +692,6 @@ function updateParameters() {
             // //console.log("Source node not found for cluster: " + cluster.index + ". Skipping...");
             return;
         }
-
 
         // playback speed
         cluster.sourceNode.playbackRate.linearRampToValueAtTime(playbackSpeed, audioCtx.currentTime + 0.1);
@@ -948,7 +951,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (downloadButton) {
         downloadButton.addEventListener('click', function () {
             if (recordedBlob == null) {
-                alert("No recording available to download, if you just ended a recording please wait a few seconds and try again.");
+                alert("No recording available to download. If you just ended a recording, please wait a few seconds and try again.");
                 return;
             }
             window.showModal("Your audio recording is ready for download. Please confirm.", function () {
@@ -969,6 +972,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (clearButton) {
         clearButton.addEventListener('click', function () {
             if (recordingState !== 'saved' && recordedBlob == null) {
+                alert("No recording available to delete. Please try recording something.");
+                return;
                 //console.log("No recording to delete.");
                 return;
             }
@@ -1066,8 +1071,8 @@ recordButton.addEventListener('click', function () {
                 type: 'audio',
                 mimeType: 'audio/wav',
                 recorderType: StereoAudioRecorder,
-                numberOfAudioChannels: 2,
-                desiredSampRate: 192000
+                //numberOfAudioChannels: 2,
+                //desiredSampRate: 44100
             });
 
             recorder.startRecording();
