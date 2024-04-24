@@ -991,20 +991,35 @@ document.addEventListener('DOMContentLoaded', function () {
         // Show the modal with informational text
         const infoMessage = `<div id="modal-instructions" class="modal-instructions">
         <h1>3D Stage by Grinchester Game Studio</h1>
-        <p>Welcome to the Spatial Audio Mixer! Drag and drop audio files onto the instruments to load them. Move the instruments around to spatialize the audio. Use the play button to start the audio, and the lock button to unlock the camera for panning. Enjoy!</p>
-        <h2>3D Stage - User Instructions</h2>
+        <p>Welcome to the Spatial Audio Mixer! Drag and drop audio files onto the instruments to load them, or use the default samples. Move the instruments around to spatialize the audio. Click and drag the stage to adjust the camera. Use the play button to start the audio, which can be recorded and downloaded. Enjoy!</p>
+        <h2>3D Stage - Detailed User Instructions</h2>
+        <p><strong>Setup Instructions:</strong></p>
+        <ol>
+            <li>Set the number of desired instruments using the slider located in the top-right of the user interface.</li>
+            <li>3D models representing individual audio tracks will load in based on the slider. Each model has a default audio track.</li>
+            <li>You can use the sample track, or drop a <code>.wav</code> or <code>.mp3</code> file directly onto each individual instrument model to mix your own audio.</li>
+            <li>Once all audio samples have been loaded onto their respective instrument icons, click the playback button on the transport.</li>
+            <li>Once you’ve dialed in your instruments, you can record and download your mix using the record and download buttons on the transport.</li>
+        </ol>
+        <p><strong>Instrument and Scene Manipulation:</strong></p>
+        <ol>
+            <li>Click and drag the mouse on a 3D instrument model to move it around the scene. This will control the spatialization of that instrument's audio track.</li>
+            <li>While dragging, hold the 'shift' key to raise the instrument up or lower it down, which will adjust the pitch of the track. Hold the 'a' key to adjust all instruments at once. </li>
+            <li>On the top left of the screen you can reset scene by clicking the reload button. </li>
+            <li>Each spotlight can have a custom color, which can be set via the corresponding color picker in the top right. </li>
+        </ol>
+        <p><strong>Camera Controls:</strong></p>
+        <ol>
+            <li>Click and drag the mouse across the screen to rotate the camera around the stage.</li>
+            <li>Use the mouse wheel to zoom in and out of the scene.</li>
+            <li>On the bottom left, you can use various camera controls to lock the camera, orbit the camera automatically (for a fun stereo experience!), or reset the camera.</li>
+            <li>Orbit speed can be adjusted via the slider in the top right of the screen. </li>
+        </ol>
         <p><strong>Prerequisites for User Audio Samples:</strong></p>
         <ul>
             <li>Audio files should be recorded at the <strong>same samplerate</strong> to ensure matched repitching between elements based on their assigned color.</li>
             <li>Audio files should be the <strong>same length</strong> to ensure synchronicity between samples when they playback and repeat (loop).</li>
         </ul>
-        <p><strong>Setup Instructions:</strong></p>
-        <ol>
-            <li>Set the number of desired instruments using the slider located in the top-right of the user interface.</li>
-            <li>Drop a <code>.wav</code> or <code>.mp3</code> file onto each individual instrument icon.</li>
-            <li>Once all audio samples have been loaded onto their respective instrument icons, click the playback button on the transport.</li>
-            <li>Once you’ve dialed in your instruments, you can record and download your mix using the record and download buttons on the transport.</li>
-        </ol>
     </div>
     `;
         window.showModal(infoMessage, null, true);  // true means we use the "Continue" button only
