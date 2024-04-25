@@ -990,7 +990,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('info-button').addEventListener('click', () => {
         // Show the modal with informational text
         const infoMessage = `<div id="modal-instructions" class="modal-instructions">
-        <h1>3D Stage by Grinchester Game Studio</h1>
+        <h1>3D Stage by Grinchester Games</h1>
         <p>Welcome to the Spatial Audio Mixer! Drag and drop audio files onto the instruments to load them, or use the default samples. Move the instruments around to spatialize the audio. Click and drag the stage to adjust the camera. Use the play button to start the audio, which can be recorded and downloaded. Enjoy!</p>
         <h2>3D Stage - Detailed User Instructions</h2>
         <p><strong>Setup Instructions:</strong></p>
@@ -1002,23 +1002,27 @@ document.addEventListener('DOMContentLoaded', function () {
             <li>Once you’ve dialed in your instruments, you can record and download your mix using the record and download buttons on the transport.</li>
         </ol>
         <p><strong>Instrument and Scene Manipulation:</strong></p>
-        <ol>
+        <ul>
             <li>Click and drag the mouse on a 3D instrument model to move it around the scene. This will control the spatialization of that instrument's audio track.</li>
             <li>While dragging, hold the 'shift' key to raise the instrument up or lower it down, which will adjust the pitch of the track. Hold the 'a' key to adjust all instruments at once. </li>
             <li>On the top left of the screen you can reset scene by clicking the reload button. </li>
             <li>Each spotlight can have a custom color, which can be set via the corresponding color picker in the top right. </li>
-        </ol>
+        </ul>
         <p><strong>Camera Controls:</strong></p>
-        <ol>
+        <ul>
             <li>Click and drag the mouse across the screen to rotate the camera around the stage.</li>
             <li>Use the mouse wheel to zoom in and out of the scene.</li>
             <li>On the bottom left, you can use various camera controls to lock the camera, orbit the camera automatically (for a fun stereo experience!), or reset the camera.</li>
             <li>Orbit speed can be adjusted via the slider in the top right of the screen. </li>
-        </ol>
+        </ul>
         <p><strong>Prerequisites for User Audio Samples:</strong></p>
         <ul>
             <li>Audio files should be recorded at the <strong>same samplerate</strong> to ensure matched repitching between elements based on their assigned color.</li>
             <li>Audio files should be the <strong>same length</strong> to ensure synchronicity between samples when they playback and repeat (loop).</li>
+            <li>To play your downloaded audio file, you will need a tool to provide the correct audio codes. Check out the following tools for more:</li>
+            <li> ffmpeg: <a href="https://ffmpeg.org/" target="_blank">https://ffmpeg.org/</a></li>
+            <li> Audacity: <a href="https://www.audacityteam.org/" target="_blank">https://www.audacityteam.org/</a></li>
+            <li> VLC Media Player: <a href="https://www.videolan.org/vlc/index.html" target="_blank">https://www.videolan.org/vlc/index.html</a></li>
         </ul>
     </div>
     `;
@@ -1028,7 +1032,25 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.getElementById('about-button').addEventListener('click', () => {
-        const aboutMessage = `<strong>Icons:</strong>
+        const aboutMessage = `        
+        <strong>3D Stage is created by:</strong>
+        <table style="width:100%; text-align:center; border:1px solid white;">
+        <tr>
+            <th>Grinchester Games</th>
+        </tr>
+        <tr>
+            <td>Richard Graham, Ph.D.</td>
+        </tr>
+        <tr>
+            <td>Matthew Winchester</td>
+        </tr>
+        <tr>
+            <td>The George Washington University</td>
+        </tr>
+        </table>
+        <strong>Check out our code here:<a href="https://github.com/latterArrays/3DStage" target="_blank"> Github </a></strong> 
+        <h3>Attributions:</h3>
+        <strong>Icons:</strong>
         <ul>
             <li>Circular arrow icons created by <a href="https://www.flaticon.com/free-icons/circular-arrow" target="_blank">Dave Gandy - Flaticon</a></li>
             <li>Spinning icons created by <a href="https://www.flaticon.com/free-icons/spinning" target="_blank">Andrejs Kirma - Flaticon</a></li>

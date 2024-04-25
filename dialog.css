@@ -28,6 +28,8 @@
 
 .modal-content {
   margin-top: 0;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal-dialog a {
