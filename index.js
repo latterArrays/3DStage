@@ -336,6 +336,9 @@ function updateInstruments(numInstruments) {
             .catch(error => console.error('Error:', error));
 
     }
+
+    document.getElementById('shift-icon').classList.remove('emphasized');
+    document.getElementById('z-icon').classList.remove('emphasized');
 }
 
 // Creates or updates spotlight controls and adds them to the UI
@@ -444,7 +447,10 @@ function animate() {
 
     renderer.render(scene, camera);
     updateParameters();
+
 }
+
+
 
 animate();
 
