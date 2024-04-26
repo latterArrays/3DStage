@@ -912,6 +912,7 @@ document.getElementById('home-button').addEventListener('click', () => {
     const button = document.getElementById('lock-button');
     const img = button.querySelector('img');
     img.src = 'icons/padlock-unlock.png';
+    cameraControls.enabled = true;
 });
 
 window.onload = function () {
