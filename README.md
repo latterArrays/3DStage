@@ -6,9 +6,9 @@
 3D Stage is an audio-visual music creation tool, build with three.js and the Web Audio API. It features stereo spatialized audio, customizable colors, and audio recording. You can even drop your own audio files in to spatialize and modify them!
 <br>
 You can see a demo video here: 
+<br><br>
+[3D Stage demo video](https://drive.google.com/file/d/1xTrySzJaFrVCRjIFpE2OyHvV5XpGrmlW/preview)
 <br>
-<iframe src="https://drive.google.com/file/d/1xTrySzJaFrVCRjIFpE2OyHvV5XpGrmlW/preview" width="640" height="480" allow="autoplay"></iframe>
-
 #### Installation
 To run the vizualization, you will need to install node and npm. Follow installation instructions for your OS.
 <br>
