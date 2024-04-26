@@ -339,6 +339,8 @@ function updateInstruments(numInstruments) {
 
     document.getElementById('shift-icon').classList.remove('emphasized');
     document.getElementById('z-icon').classList.remove('emphasized');
+    document.getElementById('shift-icon').classList.remove('super');
+    document.getElementById('z-icon').classList.remove('super');
 }
 
 // Creates or updates spotlight controls and adds them to the UI
@@ -428,6 +430,9 @@ function animate() {
                 arrowHelpers[direction].visible = true;
                 arrowHelpers.up.visible = false;
                 arrowHelpers.down.visible = false;
+
+                document.getElementById('shift-icon').classList.remove('super');
+                document.getElementById('z-icon').classList.remove('super');
             }
         } else if (dragDirection == 'vertical' || dragDirection == 'vertAll') {
             // If shift is held, show up and down arrows
@@ -578,7 +583,8 @@ document.addEventListener('mouseup', function (event) {
         selectedinstrument = null; // Deselect the instrument
         document.getElementById('shift-icon').classList.remove('emphasized');
         document.getElementById('z-icon').classList.remove('emphasized');
-
+        document.getElementById('shift-icon').classList.remove('super');
+        document.getElementById('z-icon').classList.remove('super');
     }
 });
 
@@ -635,12 +641,13 @@ document.addEventListener('keydown', function (event) {
     if (event.key == "Shift") {
         dragDirection = 'vertical';
         addVerticalLine();
-
+        document.getElementById('shift-icon').classList.add('super');
     }
 
     if (event.key == "a") {
         dragDirection = 'vertAll';
         addVerticalLine();
+        document.getElementById('z-icon').classList.add('super');
     }
 });
 
@@ -904,7 +911,7 @@ document.getElementById('home-button').addEventListener('click', () => {
     cameraLocked = false;
     const button = document.getElementById('lock-button');
     const img = button.querySelector('img');
-    img.src = cameraLocked ? 'icons/secured-lock.png' : 'icons/padlock-unlock.png';
+    img.src = 'icons/padlock-unlock.png';
 });
 
 window.onload = function () {

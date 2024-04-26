@@ -41,6 +41,18 @@
   opacity: 1.0; 
 }
 
+#shift-icon.super {
+  border: 2px solid #000; 
+  background-color: rgb(131, 255, 249); 
+  opacity: 1.0; 
+}
+
+#z-icon.super {
+  border: 2px solid #000; 
+  background-color: rgb(131, 255, 249); 
+  opacity: 1.0; 
+}
+
 .icon {
   background-color: transparent;
   border: none;
