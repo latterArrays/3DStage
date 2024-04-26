@@ -8,6 +8,16 @@
     border-radius: 5px;
 }
 
+#key-icons {
+  position: absolute;
+  top: 115px;
+  left: 20px;
+  display: flex;
+  background-color: #484848;
+  padding: 10px;
+  border-radius: 5px;
+}
+
 #transport-controls {
   position: absolute;
   bottom: 20px;
