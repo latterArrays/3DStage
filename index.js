@@ -638,16 +638,18 @@ function addVerticalLine() {
 
 // Shift key modifier
 document.addEventListener('keydown', function (event) {
-    if (event.key == "Shift") {
-        dragDirection = 'vertical';
-        addVerticalLine();
-        document.getElementById('shift-icon').classList.add('super');
-    }
+    if (isDragging) {
+        if (event.key == "Shift") {
+            dragDirection = 'vertical';
+            addVerticalLine();
+            document.getElementById('shift-icon').classList.add('super');
+        }
 
-    if (event.key == "a") {
-        dragDirection = 'vertAll';
-        addVerticalLine();
-        document.getElementById('z-icon').classList.add('super');
+        if (event.key == "a") {
+            dragDirection = 'vertAll';
+            addVerticalLine();
+            document.getElementById('z-icon').classList.add('super');
+        }
     }
 });
 
