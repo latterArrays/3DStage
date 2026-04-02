@@ -23,6 +23,7 @@ var cameraLocked = false
 var playingAudio = false
 var cameraOrbiting = false
 var audioLoaded = false
+var pendingLoads = 0
 
 // Trying to figure out record and download - media stream required for this
 const dest = audioCtx.createMediaStreamDestination();
@@ -173,6 +174,7 @@ class InstrumentCluster {
         this.offset = null;
         this.glowing = false;
         this.heightColor = null; // Color for visual feedback of semitones
+        this.isStarted = false;
     }
 }
 
@@ -235,6 +237,9 @@ function updateInstruments(numInstruments) {
     });
 
     instrumentClusters.length = 0;
+
+    pendingLoads = numInstruments;
+    document.getElementById('play-button').disabled = true;
 
     // Add new instruments and spotlights in a circle around the center of the stage
     const angleIncrement = (2 * Math.PI) / numInstruments;
@@ -739,8 +744,9 @@ function scaleLog(input, inputStart, inputEnd, outputStart, outputEnd) {
 function playAudio() {
     // Iterate through the instruments and play a track for each one that has a valid audio buffer
     instrumentClusters.forEach(cluster => {
-        if (cluster.audioBuffer && cluster.sourceNode) {
+        if (cluster.audioBuffer && cluster.sourceNode && !cluster.isStarted) {
             cluster.sourceNode.start();
+            cluster.isStarted = true;
         }
     });
 }
@@ -750,8 +756,9 @@ function stopAudio() {
 
     // Iterate through the instruments and stop the track for each one if it is playing
     instrumentClusters.forEach(cluster => {
-        if (cluster.sourceNode) {
+        if (cluster.sourceNode && cluster.isStarted) {
             cluster.sourceNode.stop();
+            cluster.isStarted = false;
 
             // Since audio buffers can only be stopped once, use the saved file on the instrument to reload the audio file to this instrument
             if (cluster.savedFile) {
@@ -863,6 +870,10 @@ function loadAudioToInstrument(instrument, file) {
             // Set parameters
             updateParameters();
 
+            if (pendingLoads > 0 && --pendingLoads === 0) {
+                document.getElementById('play-button').disabled = false;
+            }
+
         })
 
     };
@@ -879,6 +890,7 @@ document.getElementById('play-button').addEventListener('click', () => {
         stopAudio();
         playingAudio = false;
     } else {
+        audioCtx.resume();
         playAudio();
         playingAudio = true;
     }
